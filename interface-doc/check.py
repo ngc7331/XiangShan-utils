@@ -12,6 +12,11 @@ IGNORED_INTERFACES = {
     "full": ["clock", "reset"],
     "prefix": ["io_perfInfo", "io_fetch_topdown"],
 }
+SHEET_COLUMNS = {
+    "name": 2,
+    "width": 4,
+    "direction": 3,
+}
 
 
 class VerilogFile:
@@ -36,9 +41,9 @@ class Interface:
     name: str
     width: int
     direction: Literal["input", "output"]
-    default_value: int | None = None
-    can_be_x_state: bool | None = None
-    desp: str | None = None
+    # default_value: int | None = None
+    # can_be_x_state: bool | None = None
+    # desp: str | None = None
 
     @staticmethod
     def expand_name(name: str) -> List[str]:
@@ -60,40 +65,40 @@ class Interface:
 
     @staticmethod
     def from_xlsx(row: Tuple[Cell, ...]) -> List["Interface"]:
-        name = row[2].value
+        name = row[SHEET_COLUMNS["name"]].value
         if name is None:
             raise ValueError(f"Invalid name({name}), this row may not be an interface")
 
         try:
-            width = int(row[4].value)
+            width = int(row[SHEET_COLUMNS["width"]].value)
         except ValueError:
-            raise ValueError(f"Invalid width({row[4].value}) for '{name}', this row may not be an interface")
+            raise ValueError(f"Invalid width({row[SHEET_COLUMNS['width']].value}) for '{name}', this row may not be an interface")
 
-        direction = row[3].value
+        direction = row[SHEET_COLUMNS["direction"]].value
         if direction not in ["input", "output"]:
             raise ValueError(f"Invalid direction({direction}) for '{name}', this row may not be an interface")
 
-        try:
-            default_value = int(row[5].value)
-        except ValueError:
-            default_value = None
+        # try:
+        #     default_value = int(row[5].value)
+        # except ValueError:
+        #     default_value = None
 
-        if row[6].value is None:
-            can_be_x_state = None
-        elif row[6].value.lower() in ["yes", "y", "true"]:
-            can_be_x_state = True
-        elif row[6].value.lower() in ["no", "n", "false"]:
-            can_be_x_state = False
+        # if row[6].value is None:
+        #     can_be_x_state = None
+        # elif row[6].value.lower() in ["yes", "y", "true"]:
+        #     can_be_x_state = True
+        # elif row[6].value.lower() in ["no", "n", "false"]:
+        #     can_be_x_state = False
 
-        desp = row[7].value
+        # desp = row[7].value
 
         return [Interface(
             name=_name.strip(),
             width=width,
             direction=direction,
-            default_value=default_value,
-            can_be_x_state=can_be_x_state,
-            desp=desp,
+            # default_value=default_value,
+            # can_be_x_state=can_be_x_state,
+            # desp=desp,
         ) for _name in Interface.expand_name(name)]
 
     @staticmethod
