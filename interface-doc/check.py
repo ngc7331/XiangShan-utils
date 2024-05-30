@@ -8,7 +8,10 @@ import openpyxl
 from openpyxl.worksheet.worksheet import Cell, Worksheet
 
 IGNORED_SHEETS = ["修订记录"]
-IGNORED_INTERFACES = ["clock", "reset"]
+IGNORED_INTERFACES = {
+    "full": ["clock", "reset"],
+    "prefix": ["io_perfInfo", "io_fetch_topdown"],
+}
 
 
 class VerilogFile:
@@ -91,7 +94,7 @@ class Interface:
             default_value=default_value,
             can_be_x_state=can_be_x_state,
             desp=desp,
-        ) for _name in Interface.expand_name(name) if _name not in IGNORED_INTERFACES]
+        ) for _name in Interface.expand_name(name)]
 
     @staticmethod
     def from_verilog(line: str) -> List["Interface"]:
@@ -113,7 +116,7 @@ class Interface:
             name=name,
             width=width,
             direction=direction,
-        )] if name not in IGNORED_INTERFACES else []
+        )]
 
     def __eq__(self, other: "Interface") -> bool:
         return self.name == other.name and self.width == other.width and self.direction == other.direction
@@ -170,7 +173,7 @@ class Module:
         return Module(
             name=name,
             interfaces=interfaces,
-        )
+        ).filter_interface()
 
     @staticmethod
     def from_verilog(module_line:str, verilog: TextIOWrapper):
@@ -186,7 +189,7 @@ class Module:
         return Module(
             name=name,
             interfaces=interfaces,
-        )
+        ).filter_interface()
 
     def diff(self, other: "Module") -> DiffResult:
         missing = [ai for ai in other.interfaces if ai.name not in [i.name for i in self.interfaces]]
@@ -198,6 +201,11 @@ class Module:
             extra=extra,
             diff=diff,
         )
+
+    def filter_interface(self) -> "Module":
+        self.interfaces = [i for i in self.interfaces if i.name not in IGNORED_INTERFACES["full"]]
+        self.interfaces = [i for i in self.interfaces if not any([i.name.startswith(prefix) for prefix in IGNORED_INTERFACES["prefix"]])]
+        return self
 
 if __name__ == "__main__":
     parser = ArgumentParser()
