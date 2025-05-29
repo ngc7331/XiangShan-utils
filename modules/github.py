@@ -52,13 +52,13 @@ class Actions(ApiGroup):
 
         path = f"actions_logs/{owner}/{repo}/{run_id}.zip"
         if force_download or not self.api.cache_exists(path):
+            content = self.api.get_raw(
+                f"repos/{owner}/{repo}/actions/runs/{run_id}/logs",
+                stream=True
+            ).content
+
             with self.api.cache_open(path, "wb") as f:
-                f.write(
-                    self.api.get_raw(
-                        f"repos/{owner}/{repo}/actions/runs/{run_id}/logs",
-                        stream=True
-                    ).content
-                )
+                f.write(content)
 
         with zipfile.ZipFile(self.api.cache_open(path, "rb")) as zf:
             for name in zf.filelist:
