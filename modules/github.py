@@ -81,6 +81,7 @@ class Actions(ApiGroup):
                 in_params = False
                 for line in log.splitlines():
                     if match := re.match(r"^##\[group\](.+)$", line):
+                        current_title = None
                         _current_title = match.group(1).strip()
                         if group_filters is None:
                             current_title = _current_title
