@@ -39,78 +39,96 @@ class Actions(ApiGroup):
             f"repos/{owner}/{repo}/actions/runs/{run_id}",
         )
 
-    def get_log(
+    def list_jobs(
         self,
         owner: str,
         repo: str,
         run_id: int,
-        job_name: str,
+    ) -> dict:
+        ''' List jobs for a specific workflow run. '''
+        return self.api.get(
+            f"repos/{owner}/{repo}/actions/runs/{run_id}/jobs",
+        )
+
+    def get_log(
+        self,
+        owner: str,
+        repo: str,
+        *,
+        job_id: str | int,
+        run_id: int | None = None,
         force_download: bool = False,
         group_filters: dict[str, re.Pattern] | list[re.Pattern] | None = None,
     ) -> dict[str, str]:
         ''' Get logs for a specific job in a workflow run. '''
 
-        path = f"actions_logs/{owner}/{repo}/{run_id}.zip"
+        if isinstance(job_id, str):
+            if run_id is None:
+                raise ValueError("run_id must be specified if job_id is a string")
+            # try find job_id by name
+            jobs = self.list_jobs(owner, repo, run_id)["jobs"]
+            for job in jobs:
+                if job["name"] == job_id:
+                    job_id = int(job["id"])
+                    break
+
+        if not isinstance(job_id, int):
+            raise ValueError(f"job_id must be an integer or a job name string, provided '{job_id}' not found in workflow run #{run_id}")
+
+        path = f"actions_logs/{owner}/{repo}/{job_id}.txt"
         if force_download or not self.api.cache_exists(path):
             content = self.api.get_raw(
-                f"repos/{owner}/{repo}/actions/runs/{run_id}/logs",
+                f"repos/{owner}/{repo}/actions/jobs/{job_id}/logs",
                 stream=True
             ).content
 
             with self.api.cache_open(path, "wb") as f:
                 f.write(content)
 
-        with zipfile.ZipFile(self.api.cache_open(path, "rb")) as zf:
-            for name in zf.filelist:
-                if not re.match(rf"\d+_{re.escape(job_name)}\.txt", name.filename):
-                    continue
+        with self.api.cache_open(path, "rb") as f:
+            log = f.read().decode("utf-8")
 
-                with zf.open(name) as f:
-                    log = f.read().decode("utf-8")
+        # drop line prefix (timestamp)
+        log = re.sub(
+            r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z ",
+            "",
+            log,
+            flags=re.MULTILINE
+        )
 
-                # drop line prefix (timestamp)
-                log = re.sub(
-                    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z ",
-                    "",
-                    log,
-                    flags=re.MULTILINE
-                )
-
-                log_groups = {}
+        log_groups = {}
+        current_title = None
+        in_params = False
+        for line in log.splitlines():
+            if match := re.match(r"^##\[group\](.+)$", line):
                 current_title = None
+                _current_title = match.group(1).strip()
+                if group_filters is None:
+                    current_title = _current_title
+                elif isinstance(group_filters, list):
+                    if not any(pattern.match(_current_title) for pattern in group_filters):
+                        continue
+                    current_title = _current_title
+                elif isinstance(group_filters, dict):
+                    matched_title = None
+                    for title, pattern in group_filters.items():
+                        if pattern.match(_current_title):
+                            matched_title = title
+                            break
+                    if matched_title is None:
+                        continue
+                    current_title = matched_title
+                in_params = True
+                log_groups[current_title] = []
+            elif re.match(r"^##\[endgroup\]$", line):
                 in_params = False
-                for line in log.splitlines():
-                    if match := re.match(r"^##\[group\](.+)$", line):
-                        current_title = None
-                        _current_title = match.group(1).strip()
-                        if group_filters is None:
-                            current_title = _current_title
-                        elif isinstance(group_filters, list):
-                            if not any(pattern.match(_current_title) for pattern in group_filters):
-                                continue
-                            current_title = _current_title
-                        elif isinstance(group_filters, dict):
-                            matched_title = None
-                            for title, pattern in group_filters.items():
-                                if pattern.match(_current_title):
-                                    matched_title = title
-                                    break
-                            if matched_title is None:
-                                continue
-                            current_title = matched_title
-                        in_params = True
-                        log_groups[current_title] = []
-                    elif re.match(r"^##\[endgroup\]$", line):
-                        in_params = False
-                    elif not in_params and current_title is not None:
-                        log_groups[current_title].append(line)
+            elif not in_params and current_title is not None:
+                log_groups[current_title].append(line)
 
-                for title in log_groups:
-                    log_groups[title] = "\n".join(log_groups[title])
+        for title in log_groups:
+            log_groups[title] = "\n".join(log_groups[title])
 
-                return log_groups
-
-            raise ValueError(f"Job {job_name} not found in run {run_id} logs")
+        return log_groups
 
 class PullRequests(ApiGroup):
     def get(

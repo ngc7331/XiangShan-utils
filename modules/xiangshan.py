@@ -117,11 +117,6 @@ class XiangShanAction:
             meta = meta["workflow_runs"][0]
             run_id = meta["id"]
 
-        if meta["status"] != "completed":
-            raise ValueError(f"Run {run_id} is not completed, status: {meta['status']}")
-        if meta["conclusion"] != "success":
-            raise ValueError(f"Run {run_id} is not successful, conclusion: {meta['conclusion']}")
-
         logging.info(f"Getting logs for run {run_id} from GitHub Actions")
 
         logs = {}
@@ -134,8 +129,8 @@ class XiangShanAction:
             logs = api.actions.get_log(
                 "OpenXiangShan",
                 "XiangShan",
-                run_id,
-                "EMU - Basics",
+                job_id="EMU - Basics",
+                run_id=run_id,
                 group_filters=basics_filters,
             )
             performance_filters = {
@@ -145,8 +140,8 @@ class XiangShanAction:
             logs.update(api.actions.get_log(
                 "OpenXiangShan",
                 "XiangShan",
-                run_id,
-                "EMU - Performance",
+                job_id="EMU - Performance",
+                run_id=run_id,
                 group_filters=performance_filters,
             ))
         except ValueError as e:
