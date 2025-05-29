@@ -46,6 +46,7 @@ class XiangShanAction:
         self,
         run_id: int,
         logs: dict[str, str],
+        branch: str | None = None,
         commit_sha: str | None = None,
         pull_request: int | None = None,
         updated_at: str | None = None,
@@ -55,11 +56,13 @@ class XiangShanAction:
             k: XiangShanLog(v)
             for k, v in sorted(logs.items())
         }
+        self.branch = branch
         self.commit_sha = commit_sha
         self.pull_request = pull_request
         self.updated_at = updated_at
         logging.debug(
             f"Parsing logs from run {self.run_id_str()}\n"
+            f"... Branch {self.branch_str()}\n"
             f"... Commit {self.commit_sha_str()}\n"
             f"... PR {self.pull_request_str()}\n"
             f"... Updated at {self.updated_at_str()}\n"
@@ -69,6 +72,10 @@ class XiangShanAction:
     def run_id_str(self, *, is_base: bool = False) -> str:
         ''' Get run ID as a string. Add " (base)" suffix if is_base is True. '''
         return f"{self.run_id} (base)" if is_base else str(self.run_id)
+
+    def branch_str(self) -> str:
+        ''' Get branch name as a string, or "unknown" if not set. '''
+        return self.branch or "unknown"
 
     def commit_sha_str(self) -> str:
         ''' Get commit SHA as a string, or "unknown" if not set. '''
@@ -151,6 +158,7 @@ class XiangShanAction:
         return XiangShanAction(
             run_id,
             logs,
+            branch=meta["head_branch"],
             commit_sha=meta["head_sha"],
             pull_request=meta["pull_requests"][0]["number"] if len(meta["pull_requests"]) > 0 else None,
             updated_at=meta["updated_at"],
@@ -186,12 +194,13 @@ class XiangShanAction:
     def generate_ipc_report_line(self, base: "XiangShanAction | None" = None, *, is_base: bool = False) -> str:
         ''' Generate a markdown table line for the IPC report. '''
         md = f"| {self.run_id_str(is_base=is_base)} "
+        md += f"| {self.branch_str()} "
         md += f"| {self.commit_sha_str()} "
         md += f"| {self.pull_request_str()} "
         md += f"| {self.updated_at_str()} "
         md += "| " + " | ".join(f"{ipc}" for ipc in self.get_ipc().values()) + " |\n"
         if base is not None:
-            md += f"| {self.run_id} improvement | | | | "
+            md += f"| {self.run_id} improvement | | | | | "
             md += " | ".join(f"{improvement:.2%}" for improvement in self.get_improvement(base).values()) + " |\n"
         return md
 
@@ -200,8 +209,8 @@ class XiangShanAction:
         ''' Generate a markdown IPC report for the given actions. '''
         md = "# IPC Report\n"
         md += "\n"
-        md += "| Run # | Commit | PR | Updated | " + " | ".join(XiangShanAction.ALL_TESTCASES) + " |\n"
-        md += "| :---: " * (len(XiangShanAction.ALL_TESTCASES) + 4) + "|\n"
+        md += "| Run # | Branch | Commit | PR | Updated | " + " | ".join(XiangShanAction.ALL_TESTCASES) + " |\n"
+        md += "| :---: " * (len(XiangShanAction.ALL_TESTCASES) + 5) + "|\n"
         if base is not None:
             md += base.generate_ipc_report_line(is_base=True)
         for action in actions:
