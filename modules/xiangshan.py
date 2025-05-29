@@ -110,6 +110,11 @@ class XiangShanAction:
             meta = meta["workflow_runs"][0]
             run_id = meta["id"]
 
+        if meta["status"] != "completed":
+            raise ValueError(f"Run {run_id} is not completed, status: {meta['status']}")
+        if meta["conclusion"] != "success":
+            raise ValueError(f"Run {run_id} is not successful, conclusion: {meta['conclusion']}")
+
         logging.info(f"Getting logs for run {run_id} from GitHub Actions")
 
         logs = {}
