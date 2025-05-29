@@ -145,7 +145,8 @@ class XiangShanAction:
         except ValueError as e:
             if re.match(r"Job .+ not found in run \d+ logs", e.args[0]):
                 logging.warning(e)
-            raise e
+            else:
+                raise e
 
         return XiangShanAction(
             run_id,
