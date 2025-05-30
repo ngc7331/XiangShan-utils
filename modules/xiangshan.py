@@ -60,12 +60,17 @@ class XiangShanAction:
         self.commit_sha = commit_sha
         self.pull_request = pull_request
         self.updated_at = updated_at
+
+        self.META = {
+            "Branch": self.branch_str,
+            "Commit": self.commit_sha_str,
+            "PR": self.pull_request_str,
+            "Updated": self.updated_at_str,
+        }
+
         logging.debug(
-            f"Parsing logs from run {self.run_id_str()}\n"
-            f"... Branch {self.branch_str()}\n"
-            f"... Commit {self.commit_sha_str()}\n"
-            f"... PR {self.pull_request_str()}\n"
-            f"... Updated at {self.updated_at_str()}\n"
+            f"Parsing logs from run {self.run_id_str()}\n" +
+            "\n".join(f"... {meta}: {func()}" for meta, func in self.META.items()) + "\n" +
             f"... Testcases: {', '.join(self.logs.keys())}"
         )
 
@@ -175,8 +180,8 @@ class XiangShanAction:
 
         return ipc
 
-    def get_improvement(self, base: "XiangShanAction") -> dict[str, float]:
-        ''' Get IPC improvement compared to the base action. '''
+    def get_diff(self, base: "XiangShanAction") -> dict[str, float]:
+        ''' Get IPC diff compared to the base action. '''
         # XiangShanAction.get_ipc() ensures we have IPC values for all test cases
         ipc = self.get_ipc()
         base_ipc = base.get_ipc()
@@ -189,25 +194,32 @@ class XiangShanAction:
     def generate_ipc_report_line(self, base: "XiangShanAction | None" = None, *, is_base: bool = False) -> str:
         ''' Generate a markdown table line for the IPC report. '''
         md = f"| {self.run_id_str(is_base=is_base)} "
-        md += f"| {self.branch_str()} "
-        md += f"| {self.commit_sha_str()} "
-        md += f"| {self.pull_request_str()} "
-        md += f"| {self.updated_at_str()} "
-        md += "| " + " | ".join(f"{ipc}" for ipc in self.get_ipc().values()) + " |\n"
-        if base is not None:
-            md += f"| {self.run_id} improvement | | | | | "
-            md += " | ".join(f"{improvement:.2%}" for improvement in self.get_improvement(base).values()) + " |\n"
+        md += "| " + " | ".join(f"{func()}" for func in self.META.values()) + " "
+        md += "| " + " | ".join(f"{ipc}" for ipc in self.get_ipc().values()) + " "
+        md += "| " if base is not None else ""
+        md += "|\n"
+        if not is_base and base is not None:
+            diff = self.get_diff(base).values()
+            md += f"| {self.run_id} diff "
+            md += "| " * (len(self.META) + 1)
+            md += " | ".join(f"{d:.2%}" for d in diff) + " "
+            md += f"| {sum(diff) / len(diff):.2%} "
+            md += "|\n"
         return md
 
     @staticmethod
     def generate_ipc_report(base: "XiangShanAction | None" = None, *actions: "XiangShanAction") -> str:
         ''' Generate a markdown IPC report for the given actions. '''
-        md = "# IPC Report\n"
-        md += "\n"
-        md += "| Run # | Branch | Commit | PR | Updated | " + " | ".join(XiangShanAction.ALL_TESTCASES) + " |\n"
-        md += "| :---: " * (len(XiangShanAction.ALL_TESTCASES) + 5) + "|\n"
+        md = "# IPC Report"
+        md += "\n\n"
+        md += "| Run # "
+        md += "| " + " | ".join(f"{meta}" for meta in actions[0].META.keys()) + " "
+        md += "| " + " | ".join(actions[0].ALL_TESTCASES) + " "
+        md += "| Avg. Diff " if base is not None else ""
+        md += "|\n"
+        md += "| :---: " * (len(actions[0].ALL_TESTCASES) + len(actions[0].META) + 1 + (1 if base is not None else 0)) + "|\n"
         if base is not None:
-            md += base.generate_ipc_report_line(is_base=True)
+            md += base.generate_ipc_report_line(base, is_base=True)
         for action in actions:
             md += action.generate_ipc_report_line(base)
 
