@@ -98,7 +98,6 @@ class Actions(ApiGroup):
 
         log_groups = {}
         current_title = None
-        in_params = False
         for line in log.splitlines():
             if match := re.match(r"^##\[group\](.+)$", line):
                 current_title = None
@@ -118,11 +117,8 @@ class Actions(ApiGroup):
                     if matched_title is None:
                         continue
                     current_title = matched_title
-                in_params = True
                 log_groups[current_title] = []
-            elif re.match(r"^##\[endgroup\]$", line):
-                in_params = False
-            elif not in_params and current_title is not None:
+            elif current_title is not None:
                 log_groups[current_title].append(line)
 
         for title in log_groups:

@@ -43,7 +43,7 @@ if __name__ == "__main__":
     token: str = args.token
     base_id: str | None = args.base
     auto_base: bool = args.auto_base
-    actions_ids: list[str] = args.actions
+    actions_ids: list[str] = reversed(args.actions)
     output_file: str = args.output
 
     api = GitHub(token)

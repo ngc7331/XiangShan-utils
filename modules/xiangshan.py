@@ -1,6 +1,7 @@
 ''' XiangShan Utils '''
 import re
 import logging
+from typing import Dict
 
 from .github import GitHub
 
@@ -16,6 +17,19 @@ class XiangShanLog:
             return float(match.group(1))
         raise ValueError("IPC not found in log")
 
+class XiangShanSummary:
+    ''' Parser class for XiangShan summary logs '''
+    def __init__(self, content: str):
+        self.content = content
+
+    def get_ipc(self) -> Dict[str, float]:
+        ''' Extract IPC from the log content. '''
+        ipc: Dict[str, float] = {}
+        for line in self.content.splitlines():
+            if match := re.match(r".*echo \"\| (\S+) \| (\d+\.\d+) \|", line):
+                ipc[match.group(1)] = float(match.group(2))
+        return ipc
+
 class XiangShanAction:
     ''' Parser class for XiangShan action runs '''
 
@@ -24,7 +38,7 @@ class XiangShanAction:
         "linux",
         "microbench",
         "povray",
-        "copy-and-run",
+        "copy_and_run",
     ]
 
     PERFORMANCE_TESTCASES = [
@@ -45,21 +59,25 @@ class XiangShanAction:
     def __init__(
         self,
         run_id: int,
-        logs: dict[str, str],
+        summaries: dict[str, str],
         branch: str | None = None,
         commit_sha: str | None = None,
         pull_request: int | None = None,
         updated_at: str | None = None,
     ):
         self.run_id = run_id
-        self.logs = {
-            k: XiangShanLog(v)
-            for k, v in sorted(logs.items())
+        self.summaries = {
+            k: XiangShanSummary(v)
+            for k, v in sorted(summaries.items())
         }
         self.branch = branch
         self.commit_sha = commit_sha
         self.pull_request = pull_request
         self.updated_at = updated_at
+
+        self.ipcs = {}
+        for summary in self.summaries.values():
+            self.ipcs.update(summary.get_ipc())
 
         self.META = {
             "Branch": self.branch_str,
@@ -71,7 +89,7 @@ class XiangShanAction:
         logging.debug(
             f"Parsing logs from run {self.run_id_str()}\n" +
             "\n".join(f"... {meta}: {func()}" for meta, func in self.META.items()) + "\n" +
-            f"... Testcases: {', '.join(self.logs.keys())}"
+            f"... Testcases: {', '.join(self.ipcs.keys())}"
         )
 
     def run_id_str(self, *, is_base: bool = False) -> str:
@@ -124,30 +142,22 @@ class XiangShanAction:
 
         logging.info(f"Getting logs for run {run_id} from GitHub Actions")
 
-        logs = {}
+        summaries = {}
         try:
-            basics_filters = {
-                testcase: re.compile(rf".*--ci {testcase}.*")
-                for testcase in XiangShanAction.BASICS_TESTCASES
-            }
-            basics_filters["copy-and-run"] = re.compile(r".*copy_and_run.*") # fix
-            logs = api.actions.get_log(
+            filters = [re.compile(rf"Run echo \"##.*summary.*")]
+            summaries = api.actions.get_log(
                 "OpenXiangShan",
                 "XiangShan",
                 job_id="EMU - Basics",
                 run_id=run_id,
-                group_filters=basics_filters,
+                group_filters=filters,
             )
-            performance_filters = {
-                testcase: re.compile(rf".*--ci {testcase}.*")
-                for testcase in XiangShanAction.PERFORMANCE_TESTCASES
-            }
-            logs.update(api.actions.get_log(
+            summaries.update(api.actions.get_log(
                 "OpenXiangShan",
                 "XiangShan",
                 job_id="EMU - Performance",
                 run_id=run_id,
-                group_filters=performance_filters,
+                group_filters=filters,
             ))
         except ValueError as e:
             if re.match(r"Job .+ not found in run \d+ logs", e.args[0]):
@@ -157,7 +167,7 @@ class XiangShanAction:
 
         return XiangShanAction(
             run_id,
-            logs,
+            summaries,
             branch=meta["head_branch"],
             commit_sha=meta["head_sha"],
             pull_request=meta["pull_requests"][0]["number"] if len(meta["pull_requests"]) > 0 else None,
@@ -169,11 +179,11 @@ class XiangShanAction:
         ipc = {}
 
         for testcase in self.ALL_TESTCASES:
-            if testcase not in self.logs:
+            if testcase not in self.ipcs:
                 ipc[testcase] = float("NaN")
                 continue
             try:
-                ipc[testcase] = self.logs[testcase].get_ipc()
+                ipc[testcase] = self.ipcs[testcase]
             except ValueError as e:
                 logging.warning(e)
                 ipc[testcase] = float("NaN")
