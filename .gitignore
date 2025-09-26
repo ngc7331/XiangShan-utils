@@ -1,4 +1,6 @@
 
+.stfolder
+
 .venv/
 __pycache__/
 *.log
@@ -8,4 +10,5 @@ __pycache__/
 
 # action_ipc_report
 .github_cache/
-ipc_report.md
+ipc_report*.md
+.pat
