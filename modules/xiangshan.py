@@ -2,6 +2,7 @@
 import re
 import logging
 from typing import Dict
+import math
 
 from .github import GitHub
 
@@ -195,9 +196,8 @@ class XiangShanAction:
         # XiangShanAction.get_ipc() ensures we have IPC values for all test cases
         ipc = self.get_ipc()
         base_ipc = base.get_ipc()
-
         return {
-            testcase: ipc[testcase] / base_ipc[testcase] - 1
+            testcase: ipc[testcase] / base_ipc[testcase] - 1 if not (math.isnan(ipc[testcase]) or math.isnan(base_ipc[testcase])) else .0
             for testcase in self.ALL_TESTCASES
         }
 
