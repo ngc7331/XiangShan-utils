@@ -4,18 +4,19 @@
 
 ## 参数列表
 
-`python3 main.py <options> dbfile`
+`python3 main.py [options] <dbfile>`
 
-- `-o, --output`：输出的 csv 文件路径，如未指定则使用 `./trace.csv`
-- `-s, --start`：开始处理的时钟周期数，即 STAMP 最小值，默认为 0
-- `-e, --end`：停止处理的时钟周期数，即 STAMP 最大值，默认为处理整个 db
-- `-n, --num`：和 `-e` 不能同时使用，处理的分支条目数，即从 `-s` 开始的条目数
+- `-o <file>, --output <file>`：输出的 csv 文件路径，如未指定则使用 `./trace.csv`
+- `-s <cycle>, --start <cycle>`：开始处理的时钟周期数，即 STAMP 最小值，默认为 0
+- `-e <cycle>, --end <cycle>`：停止处理的时钟周期数，即 STAMP 最大值，默认为处理整个 db
+- `-n <num>, --num <num>`：和 `-e` 不能同时使用，处理的分支条目数，即从 `-s` 开始的条目数
+- `--only-addr <addr>`：只输出指定地址的条目
 - `--only-mispredict`：只输出误预测的条目
 - `--only-override`：只输出发生 override（即 s1 和 s3 预测不一致）的条目
 - `--brtype`：输出 brType 字段
 - `--rasaction`：输出 rasAction 字段
 - `--target`：输出 target 字段
-- `-m, --meta`：需要显示的元数据字段名，多个字段用逗号分隔，如 `--meta XXX,YYY`，默认为不显示任何元数据
+- `-m, --meta <name[,names]>`：需要显示的元数据字段名，多个字段用逗号分隔，如 `--meta XXX,YYY`，默认为不显示任何元数据
 - `dbfile`：输入的数据库文件路径
 
 ## 数据库结构

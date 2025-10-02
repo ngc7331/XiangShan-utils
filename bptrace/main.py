@@ -1,8 +1,150 @@
 import argparse
+from dataclasses import dataclass
 import sqlite3
 import csv
 import sys
-from typing import Generator, Dict, Any
+from typing import Generator, Dict, Any, Literal
+
+
+FIELD_STAMP = "stamp"
+FIELD_BPID = "id"
+FIELD_ADDR = "addr"
+FIELD_TYPE = "type"
+FIELD_TAKEN = "taken"
+FIELD_POSITION = "position"
+FIELD_MISPRED = "mispredict"
+FIELD_BRTYPE = "brType"
+FIELD_RASACTION = "rasAction"
+FIELD_TARGET = "target"
+
+BASE_FIELDS = [
+    FIELD_STAMP,
+    FIELD_BPID,
+    FIELD_ADDR,
+    FIELD_TYPE,
+    FIELD_TAKEN,
+    FIELD_POSITION,
+    FIELD_MISPRED
+]
+
+KNOWN_FIELDS = BASE_FIELDS + [
+    FIELD_BRTYPE,
+    FIELD_RASACTION,
+    FIELD_TARGET
+]
+
+TABLE_PRED = "BpuPredictionTrace"
+TABLE_TRAIN = "BpuTrainTrace"
+
+
+@dataclass
+class Record:
+    """Data class representing a single branch prediction or training record."""
+    stamp: int
+    id: int
+    addr: int
+    type: str
+    taken: int
+    position: int
+    mispredict: int
+    br_type: int | None = None
+    ras_action: int | None = None
+    target: int | None = None
+    meta: Dict[str, Any] = None
+
+    @staticmethod
+    def from_db(
+        row: tuple,
+        include_brtype: bool = False,
+        include_rasaction: bool = False,
+        include_target: bool = False,
+        meta_fields: list[str] | None = None,
+    ) -> 'Record':
+        """Create Record from database row."""
+        record = Record(
+            stamp=row[0],
+            id=row[1],
+            addr=row[2],
+            type=row[3],
+            taken=row[4],
+            position=row[5],
+            mispredict=row[6]
+        )
+        index = len(BASE_FIELDS)
+        if include_brtype:
+            record.br_type = row[index]
+            index += 1
+        if include_rasaction:
+            record.ras_action = row[index]
+            index += 1
+        if include_target:
+            record.target = row[index]
+            index += 1
+        if meta_fields:
+            record.meta = {}
+            for field in meta_fields:
+                record.meta[field] = row[index]
+                index += 1
+        return record
+
+    @staticmethod
+    def render_prunedaddr(addr: int, use_pruned: bool) -> str:
+        """Convert pruned address to hex string"""
+        return hex(addr << 1) if use_pruned else hex(addr)
+
+    @staticmethod
+    def render_brtype(brtype: int) -> str:
+        """Convert branch type integer to string representation."""
+        return [
+            'None',
+            'Conditional',
+            'Direct',
+            'Indirect'
+        ][brtype]
+
+    @staticmethod
+    def render_rasaction(rasaction: int) -> str:
+        """Convert RAS action integer to string representation."""
+        return [
+            'None',
+            'Pop',
+            'Push',
+            'PopAndPush'
+        ][rasaction]
+
+    def fields(self) -> list[str]:
+        """Get list of fields present in this record."""
+        fields = BASE_FIELDS.copy()
+        if self.br_type is not None:
+            fields.append(FIELD_BRTYPE)
+        if self.ras_action is not None:
+            fields.append(FIELD_RASACTION)
+        if self.target is not None:
+            fields.append(FIELD_TARGET)
+        if self.meta:
+            fields.extend(self.meta.keys())
+        return fields
+
+    def render(self, use_pruned_addr: bool = False) -> Dict[str, Any]:
+        """Convert to dict for CSV output."""
+        result = {
+            FIELD_STAMP: self.stamp,
+            FIELD_BPID: self.id,
+            FIELD_ADDR: self.render_prunedaddr(self.addr, use_pruned_addr),
+            FIELD_TYPE: self.type,
+            FIELD_TAKEN: self.taken,
+            FIELD_POSITION: self.position,
+            FIELD_MISPRED: self.mispredict
+        }
+        if self.br_type is not None:
+            result[FIELD_BRTYPE] = self.render_brtype(self.br_type)
+        if self.ras_action is not None:
+            result[FIELD_RASACTION] = self.render_rasaction(self.ras_action)
+        if self.target is not None:
+            result[FIELD_TARGET] = self.render_prunedaddr(self.target, use_pruned_addr)
+        if self.meta:
+            result.update(self.meta)
+        return result
 
 
 def parse_args() -> argparse.Namespace:
@@ -37,6 +179,12 @@ def parse_args() -> argparse.Namespace:
         "-n", "--num",
         type=int,
         help="Number of branch entries to process (cannot be used with -e)"
+    )
+
+    parser.add_argument(
+        "--only-addr",
+        type=lambda x: int(x, base=0),
+        help="Only output entries with specified startVAddr"
     )
 
     parser.add_argument(
@@ -115,7 +263,7 @@ def clear_temp_table(cur: sqlite3.Cursor) -> None:
     cur.execute("DELETE FROM temp_bpids")
 
 def validate_meta_fields(cur: sqlite3.Cursor, fields: str | None) -> list[str]:
-    """Validate that the requested metadata fields exist in the prediction table"""
+    """Validate that the requested metadata fields exists and convert to list."""
     if not fields:
         return []
 
@@ -151,79 +299,71 @@ def insert_bpids_to_temp_table(cur: sqlite3.Cursor, bpids: list[int]) -> None:
         placeholders = ','.join(['(?)'] * len(chunk))
         cur.execute(f"INSERT OR IGNORE INTO temp_bpids VALUES {placeholders}", chunk)
 
-def fetch_override_bpids(cur: sqlite3.Cursor, start: int, end: int | None) -> list[int]:
-    """Get all bpids where s1 and s3 predictions differ."""
-    where_clause, params = get_time_range_where_clause(start, end)
 
-    # Create temporary table for override cases
-    cur.execute("""
-        CREATE TEMP TABLE IF NOT EXISTS temp_override_bpids AS
-        SELECT DISTINCT META_DEBUG_BPID
-        FROM BpuPredictionTrace
-        WHERE
+def get_bpids_subquery(table_column: str) -> str:
+    """Generate a subquery for bpid filtering using temporary table."""
+    return f"AND {table_column} IN (SELECT bpid FROM temp_bpids)"
+
+def fetch_bpids(
+        cur: sqlite3.Cursor,
+        condition: str,
+        params: list[Any],
+        table: Literal["BpuPredictionTrace", "BpuTrainTrace"],
+        start: int,
+        end: int | None
+    ) -> set[int]:
+    """Get all bpids matching a specific condition (SQL query)."""
+    where_clause, where_params = get_time_range_where_clause(start, end)
+
+    cur.execute(f"""
+        SELECT DISTINCT {"META_DEBUG_BPID" if table == TABLE_PRED else "TRAIN_META_DEBUG_BPID"}
+        FROM {table}
+        WHERE {where_clause} AND ({condition})
+    """, where_params + params)
+
+    return set(row[0] for row in cur.fetchall())
+
+def fetch_override_bpids(cur: sqlite3.Cursor, start: int, end: int | None) -> set[int]:
+    """Get all bpids where s1 and s3 predictions differ."""
+    return fetch_bpids(
+        cur,
+        """
             S1PREDICTION_TAKEN != S3PREDICTION_TAKEN OR
             S1PREDICTION_CFIPOSITION != S3PREDICTION_CFIPOSITION OR
             S1PREDICTION_TARGET_ADDR != S3PREDICTION_TARGET_ADDR OR
             S1PREDICTION_ATTRIBUTE_BRANCHTYPE != S3PREDICTION_ATTRIBUTE_BRANCHTYPE OR
             S1PREDICTION_ATTRIBUTE_RASACTION != S3PREDICTION_ATTRIBUTE_RASACTION
-    """)
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_override_bpid
-            ON temp_override_bpids(META_DEBUG_BPID)
-    """)
-
-    # Apply time range filter and get results
-    cur.execute(f"""
-        SELECT t.META_DEBUG_BPID
-        FROM temp_override_bpids t
-        JOIN BpuPredictionTrace p ON t.META_DEBUG_BPID = p.META_DEBUG_BPID
-        WHERE {where_clause}
-    """, params)
-    result = [row[0] for row in cur.fetchall()]
-
-    # Cleanup temporary table
-    cur.execute("DROP TABLE temp_override_bpids")
-    return result
-
+        """,
+        [],
+        TABLE_PRED,
+        start,
+        end
+    )
 
 def fetch_mispredict_bpids(cur: sqlite3.Cursor, start: int, end: int | None) -> list[int]:
     """Get all bpids that were mispredicted."""
-    where_clause, params = get_time_range_where_clause(start, end)
-
-    # Create temporary table for mispredictions
-    conditions = []
-    for i in range(8):
-        conditions.append(
+    return fetch_bpids(
+        cur,
+        " OR ".join(
             f"(TRAIN_BRANCHES_{i}_VALID = 1 AND TRAIN_BRANCHES_{i}_BITS_MISPREDICT = 1)"
-        )
+            for i in range(8)
+        ),
+        [],
+        TABLE_TRAIN,
+        start,
+        end
+    )
 
-    cur.execute(f"""
-        CREATE TEMP TABLE IF NOT EXISTS temp_mispredict_bpids AS
-        SELECT DISTINCT TRAIN_META_DEBUG_BPID
-        FROM BpuTrainTrace
-        WHERE {" OR ".join(conditions)}
-    """)
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_mispredict_bpid
-            ON temp_mispredict_bpids(TRAIN_META_DEBUG_BPID)
-    """)
-
-    # Apply time range filter and get results
-    cur.execute(f"""
-        SELECT t.TRAIN_META_DEBUG_BPID
-        FROM temp_mispredict_bpids t
-        JOIN BpuTrainTrace tr ON t.TRAIN_META_DEBUG_BPID = tr.TRAIN_META_DEBUG_BPID
-        WHERE {where_clause}
-    """, params)
-    result = [row[0] for row in cur.fetchall()]
-
-    # Cleanup temporary table
-    cur.execute("DROP TABLE temp_mispredict_bpids")
-    return result
-
-def get_bpids_subquery(table_column: str) -> str:
-    """Generate a subquery for bpid filtering using temporary table."""
-    return f"AND {table_column} IN (SELECT bpid FROM temp_bpids)"
+def fetch_addr_bpids(cur: sqlite3.Cursor, addr: int, start: int, end: int | None) -> set[int]:
+    """Get all bpids with specified startVAddr."""
+    return fetch_bpids(
+        cur,
+        "META_DEBUG_STARTVADDR_ADDR = ?",
+        [addr],
+        TABLE_PRED,
+        start,
+        end
+    )
 
 def fetch_prediction_trace(
         cur: sqlite3.Cursor,
@@ -235,7 +375,7 @@ def fetch_prediction_trace(
         include_rasaction: bool = False,
         include_target: bool = False,
         meta_fields: list[str] | None = None,
-    ) -> list[Dict[str, Any]]:
+    ) -> list[Record]:
     """Get prediction records from BPU prediction trace."""
     where_clause, params = get_time_range_where_clause(start, end)
 
@@ -285,36 +425,15 @@ def fetch_prediction_trace(
         {' LIMIT ? ' if num is not None else ''}
     """, final_params)
 
-    result = []
-    for row in cur.fetchall():
-        # Build row dict with standard fields
-        row_dict = {
-            'stamp': row[0],
-            'id': row[1],
-            'addr': row[2],
-            'type': row[3],
-            'taken': row[4],
-            'position': row[5],
-            'mispredict': row[6]
-        }
-
-        # Add optional fields if they were included in the query
-        field_index = len(row_dict)
-        if include_brtype:
-            row_dict['brType'] = row[field_index]
-            field_index += 1
-        if include_rasaction:
-            row_dict['rasAction'] = row[field_index]
-            field_index += 1
-        if include_target:
-            row_dict['target'] = row[field_index]
-            field_index += 1
-
-        # Add metadata fields from the end of the row
-        for i, field in enumerate(meta_fields or []):
-            row_dict[field] = row[field_index + i]
-
-        result.append(row_dict)
+    result = [
+        Record.from_db(
+            row,
+            include_brtype=include_brtype,
+            include_rasaction=include_rasaction,
+            include_target=include_target,
+            meta_fields=meta_fields
+        ) for row in cur.fetchall()
+    ]
 
     # Cleanup temporary table
     if bpid_list:
@@ -332,10 +451,10 @@ def fetch_train_trace(
         include_rasaction: bool = False,
         include_target: bool = False,
         meta_fields: list[str] | None = None,
-    ) -> list[Dict[str, Any]]:
+    ) -> list[Record]:
     """Get branch training records from BPU train trace."""
     where_clause, params = get_time_range_where_clause(start, end)
-    result = []
+    result: list[Record] = []
 
     # Use temporary table if bpid_list is provided
     if bpid_list:
@@ -372,75 +491,33 @@ def fetch_train_trace(
         select_fields = base_fields + branch_fields + meta_field_names
         select_str = ", ".join(select_fields)
 
+        # Do not sort here, we want sort from all branches together later
         cur.execute(f"""
             SELECT {select_str}
             FROM BpuTrainTrace
             WHERE {where_clause} {bpid_subquery} AND TRAIN_BRANCHES_{i}_VALID = 1
         """, params)
-        chunk_rows = cur.fetchall()
 
-        for row in chunk_rows:
-            # Build row dict with standard fields
-            row_dict = {
-                'stamp': row[0],
-                'id': row[1],
-                'addr': row[2],
-                'type': row[3],
-                'taken': row[4],
-                'position': row[5],
-                'mispredict': row[6]
-            }
-
-            # Add optional fields if they were included in the query
-            field_index = len(row_dict)
-            if include_brtype:
-                row_dict['brType'] = row[field_index]
-                field_index += 1
-            if include_rasaction:
-                row_dict['rasAction'] = row[field_index]
-                field_index += 1
-            if include_target:
-                row_dict['target'] = row[field_index]
-                field_index += 1
-
-            # Add metadata fields from the end of the row
-            for j, field in enumerate(meta_fields or []):
-                row_dict[field] = row[field_index + j]
-
-            result.append(row_dict)
+        result.extend(
+            Record.from_db(
+                row,
+                include_brtype=include_brtype,
+                include_rasaction=include_rasaction,
+                include_target=include_target,
+                meta_fields=meta_fields
+            ) for row in cur.fetchall()
+        )
 
     # Cleanup temporary table
     if bpid_list:
         clear_temp_table(cur)
 
     # Sort results and limit if needed
-    result.sort(key=lambda x: (x['stamp'], x['id']))
+    result.sort(key=lambda x: (x.stamp, x.id, x.type))
     if num is not None:
         result = result[:num]
 
     return result
-
-def render_prunedaddr(addr: int, use_pruned: bool) -> str:
-    """Convert pruned address to hex string"""
-    return hex(addr << 1) if use_pruned else hex(addr)
-
-def render_brtype(brtype: int) -> str:
-    """Convert branch type integer to string representation."""
-    return [
-        'None',
-        'Conditional',
-        'Direct',
-        'Indirect'
-    ][brtype]
-
-def render_rasaction(rasaction: int) -> str:
-    """Convert RAS action integer to string representation."""
-    return [
-        'None',
-        'Pop',
-        'Push',
-        'PopAndPush'
-    ][rasaction]
 
 def main() -> None:
     """Main entry point for the branch prediction trace analysis tool."""
@@ -453,29 +530,15 @@ def main() -> None:
     meta_fields = validate_meta_fields(cur, args.meta)
 
     # Select bpids based on filters
-    bpid_list = None
-    if args.only_mispredict or args.only_override:
-        filter_lists = []
+    bpid_lists = []
+    if args.only_addr is not None:
+        bpid_lists.append(fetch_addr_bpids(cur, args.only_addr, args.start, args.end))
+    if args.only_mispredict:
+        bpid_lists.append(fetch_mispredict_bpids(cur, args.start, args.end))
+    if args.only_override:
+        bpid_lists.append(fetch_override_bpids(cur, args.start, args.end))
 
-        if args.only_mispredict:
-            mispredict_list = fetch_mispredict_bpids(cur, args.start, args.end)
-            if not mispredict_list:
-                print("No misprediction records found", file=sys.stderr)
-                sys.exit(0)
-            filter_lists.append(set(mispredict_list))
-
-        if args.only_override:
-            override_list = fetch_override_bpids(cur, args.start, args.end)
-            if not override_list:
-                print("No override records found", file=sys.stderr)
-                sys.exit(0)
-            filter_lists.append(set(override_list))
-
-        # Take intersection of all filter conditions
-        bpid_list = list(set.intersection(*filter_lists))
-        print(f"Filtered records: {len(bpid_list)}")
-        if not bpid_list:
-            sys.exit(0)
+    bpid_list = list(set.intersection(*bpid_lists)) if bpid_lists else None
 
     # Fetch prediction and training records
     pred = fetch_prediction_trace(
@@ -505,30 +568,19 @@ def main() -> None:
             sys.exit(0)
 
     # Sort by timestamp and ID
-    all_rows = pred + train
-    all_rows.sort(key=lambda x: (x['stamp'], x['id'], x['type']))
+    records = pred + train
+    records.sort(key=lambda x: (x.stamp, x.id, x.type))
 
     # Prepare CSV fieldnames - metadata fields at the end
-    fieldnames = [
-        'stamp',
-        'id',
-        'addr',
-        'type',
-        'taken',
-        'position'
-    ]
-
-    # Add mispredict field before the optional fields
-    fieldnames.append('mispredict')
+    fieldnames = BASE_FIELDS.copy()
 
     # Add optional fields based on command line arguments
     if args.brtype:
-        fieldnames.append('brType')
+        fieldnames.append(FIELD_BRTYPE)
     if args.rasaction:
-        fieldnames.append('rasAction')
+        fieldnames.append(FIELD_RASACTION)
     if args.target:
-        fieldnames.append('target')
-
+        fieldnames.append(FIELD_TARGET)
     if meta_fields:
         fieldnames.extend(meta_fields)
 
@@ -536,16 +588,8 @@ def main() -> None:
     with open(args.output, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        for row in all_rows:
-            out_row = row.copy()
-            out_row['addr'] = render_prunedaddr(row['addr'], args.render_prunedaddr)
-            if (args.brtype):
-                out_row['brType'] = render_brtype(row['brType'])
-            if (args.rasaction):
-                out_row['rasAction'] = render_rasaction(row['rasAction'])
-            if (args.target):
-                out_row['target'] = render_prunedaddr(row['target'], args.render_prunedaddr)
-            writer.writerow(out_row)
+        for record in records:
+            writer.writerow(record.render(args.render_prunedaddr))
 
     print(f"Export completed: {args.output}")
 
