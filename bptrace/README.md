@@ -17,6 +17,8 @@
 - `--rasaction`：输出 rasAction 字段
 - `--target`：输出 target 字段
 - `-m, --meta <name[,names]>`：需要显示的元数据字段名，多个字段用逗号分隔，如 `--meta XXX,YYY`，默认为不显示任何元数据
+- `--only-stats`：只输出统计信息，不输出 trace
+- `--stats-stats-addr-mispredict <top_n>`：输出误预测次数最多的前 n 个地址，默认为 10
 - `dbfile`：输入的数据库文件路径
 
 ## 数据库结构

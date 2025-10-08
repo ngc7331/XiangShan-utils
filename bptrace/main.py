@@ -228,6 +228,20 @@ def parse_args() -> argparse.Namespace:
         help="Render real address of PrunedAddr"
     )
 
+    # Statistics options
+    parser.add_argument(
+        "--only-stats",
+        action="store_true",
+        help="Only generate statistics, do not export CSV"
+    )
+
+    parser.add_argument(
+        "--stats-addr-mispredict",
+        type=int,
+        default=10,
+        help="Show top N startVAddr with most mispredictions"
+    )
+
     args = parser.parse_args()
 
     if args.end is not None and args.num is not None:
@@ -519,13 +533,22 @@ def fetch_train_trace(
 
     return result
 
-def main() -> None:
-    """Main entry point for the branch prediction trace analysis tool."""
-    args = parse_args()
+def count_addr_mispredict(cur: sqlite3.Cursor) -> dict[int, int]:
+    """Get top N startVAddr with most mispredictions."""
+    counts = {}
+    for i in range(8):
+        cur.execute(f'''
+            SELECT TRAIN_META_DEBUG_STARTVADDR_ADDR, COUNT(*)
+            FROM BpuTrainTrace
+            WHERE TRAIN_BRANCHES_{i}_VALID = 1 AND TRAIN_BRANCHES_{i}_BITS_MISPREDICT = 1
+            GROUP BY TRAIN_META_DEBUG_STARTVADDR_ADDR
+        ''')
+        for addr, count in cur.fetchall():
+            counts[addr] = counts.get(addr, 0) + count
+    return counts
 
-    conn = sqlite3.connect(args.dbfile)
-    cur = conn.cursor()
-
+def export(args: argparse.Namespace, cur: sqlite3.Cursor) -> None:
+    """Export processed trace data to CSV file."""
     # Validate meta fields if provided
     meta_fields = validate_meta_fields(cur, args.meta)
 
@@ -591,7 +614,32 @@ def main() -> None:
         for record in records:
             writer.writerow(record.render(args.render_prunedaddr))
 
-    print(f"Export completed: {args.output}")
+    print(f"Bp trace exported to {args.output}")
+
+def stat(args: argparse.Namespace, cur: sqlite3.Cursor) -> None:
+    """Generate and print statistics."""
+    print("===== Statistics =====")
+    if args.stats_addr_mispredict > 0:
+        counts = count_addr_mispredict(cur)
+        sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:args.stats_addr_mispredict]
+        print(f"Top {args.stats_addr_mispredict} startVAddr with most mispredictions:")
+        print(f"{'Address':<14} {'Mispredictions':<15}")
+        for addr, count in sorted_counts:
+            addr_str = Record.render_prunedaddr(addr, args.render_prunedaddr)
+            print(f"{addr_str:<14} {count:<15}")
+
+def main() -> None:
+    """Entry point."""
+    args = parse_args()
+
+    conn = sqlite3.connect(args.dbfile)
+    cur = conn.cursor()
+
+    if not args.only_stats:
+        export(args, cur)
+    stat(args, cur)
+
+    conn.close()
 
 if __name__ == "__main__":
     main()
