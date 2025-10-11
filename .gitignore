@@ -1,4 +1,3 @@
-
 .stfolder
 
 .venv/
@@ -6,13 +5,5 @@ __pycache__/
 *.log
 *.tmp
 
-.token
-
-# action_ipc_report
-.github_cache/
-ipc_report*.md
-.pat
-
 # sync-bosc
 bosc/
-
