@@ -17,8 +17,10 @@
 - `--rasaction`：输出 rasAction 字段
 - `--target`：输出 target 字段
 - `-m, --meta <name[,names]>`：需要显示的元数据字段名，多个字段用逗号分隔，如 `--meta XXX,YYY`，默认为不显示任何元数据
+- `--render-prunedaddr`：将 PrunedAddr 渲染为真实地址
 - `--only-stats`：只输出统计信息，不输出 trace
-- `--stats-stats-addr-mispredict <top_n>`：输出误预测次数最多的前 n 个地址，默认为 10
+- `--stats-mispredict <top_n>`：输出误预测次数最多的前 n 个预测块（startVAddr），默认为 10
+- `--stats-br-mispredict <top_n>`：输出误预测次数最多的前 n 个分支（startVAddr, position）对，默认为 20
 - `dbfile`：输入的数据库文件路径
 
 ## 数据库结构
@@ -50,6 +52,8 @@ XiangShan 通过 ChiselDB 功能在仿真时保存分支预测的预测和训练
 
 ## 输出
 
+输出为 CSV 格式，字段包括：
+
 - `stamp`：时间戳
 - `id`：序列号
 - `addr`：地址
@@ -57,3 +61,7 @@ XiangShan 通过 ChiselDB 功能在仿真时保存分支预测的预测和训练
 - `taken`：是否 taken
 - `position`：分支位置
 - `mispredict`：若 `type` 为预测则固定为 `-`，否则表示是否误预测
+- `brType`：分支类型（若使用 `--brtype` 参数）
+- `rasAction`：RAS 动作（若使用 `--rasaction` 参数）
+- `target`：目标地址（若使用 `--target` 参数）
+- `XXX`：其他元数据字段（若使用 `--meta XXX` 参数）
