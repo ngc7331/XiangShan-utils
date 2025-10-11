@@ -125,9 +125,10 @@ def main() -> None:
     conn = sqlite3.connect(args.dbfile)
     cur = conn.cursor()
 
+    stat(args, cur)
+
     if not args.only_stats:
         export(args, cur)
-    stat(args, cur)
 
     conn.close()
 
