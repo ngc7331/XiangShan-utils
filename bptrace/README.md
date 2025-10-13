@@ -21,6 +21,7 @@
 - `--only-stats`：只输出统计信息，不输出 trace
 - `--stats-mispredict <top_n>`：输出误预测次数最多的前 n 个预测块（startVAddr），默认为 10
 - `--stats-br-mispredict <top_n>`：输出误预测次数最多的前 n 个分支（startVAddr, position）对，默认为 20
+- `--stats-type-mispredict <enable>`：输出按属性（brType, rasAction）分类的误预测次数统计，默认为开启
 - `dbfile`：输入的数据库文件路径
 
 ## 数据库结构

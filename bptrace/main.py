@@ -110,6 +110,13 @@ def parse_args() -> argparse.Namespace:
         help="Show top N branches (startVAddr, position) with most mispredictions"
     )
 
+    parser.add_argument(
+        "--stats-type-mispredict",
+        type=bool,
+        default=True,
+        help="Show misprediction counts by attribute (brType, rasAction)"
+    )
+
     args = parser.parse_args()
 
     if args.end is not None and args.num is not None:
