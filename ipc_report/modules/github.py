@@ -3,7 +3,7 @@
 import os
 from typing import IO, Any
 import re
-import zipfile
+import logging
 
 import requests
 
@@ -77,10 +77,14 @@ class Actions(ApiGroup):
 
         path = f"actions_logs/{owner}/{repo}/{job_id}.txt"
         if force_download or not self.api.cache_exists(path):
-            content = self.api.get_raw(
-                f"repos/{owner}/{repo}/actions/jobs/{job_id}/logs",
-                stream=True
-            ).content
+            try:
+                content = self.api.get_raw(
+                    f"repos/{owner}/{repo}/actions/jobs/{job_id}/logs",
+                    stream=True
+                ).content
+            except Exception as e:
+                logging.error(f"Failed to download logs for job {job_id}: {e}")
+                return {}
 
             with self.api.cache_open(path, "wb") as f:
                 f.write(content)
