@@ -117,6 +117,13 @@ def parse_args() -> argparse.Namespace:
         help="Show misprediction counts by attribute (brType, rasAction)"
     )
 
+    parser.add_argument(
+        "--stats-override",
+        type=bool,
+        default=True,
+        help="Show prediction override counts by reason"
+    )
+
     args = parser.parse_args()
 
     if args.end is not None and args.num is not None:
