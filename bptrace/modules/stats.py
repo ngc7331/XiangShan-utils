@@ -96,40 +96,43 @@ def count_override(cur: sqlite3.Cursor) -> dict[str, int]:
     cur.execute(f'''
         SELECT COUNT(*)
         FROM BpuPredictionTrace
-        WHERE S1PREDICTION_CFIPOSITION != S3PREDICTION_CFIPOSITION
+        WHERE
+            S1PREDICTION_TAKEN != S3PREDICTION_TAKEN
+    ''')
+    overrides["taken"] = cur.fetchone()[0]
+
+    cur.execute(f'''
+        SELECT COUNT(*)
+        FROM BpuPredictionTrace
+        WHERE
+            S1PREDICTION_TAKEN == S3PREDICTION_TAKEN AND
+            S1PREDICTION_CFIPOSITION != S3PREDICTION_CFIPOSITION
     ''')
     overrides["position"] = cur.fetchone()[0]
 
     cur.execute(f'''
         SELECT COUNT(*)
         FROM BpuPredictionTrace
-        WHERE S1PREDICTION_CFIPOSITION == S3PREDICTION_CFIPOSITION AND (
+        WHERE
+            S1PREDICTION_TAKEN == S3PREDICTION_TAKEN AND
+            S1PREDICTION_CFIPOSITION == S3PREDICTION_CFIPOSITION AND (
                 S1PREDICTION_ATTRIBUTE_BRANCHTYPE != S3PREDICTION_ATTRIBUTE_BRANCHTYPE OR
                 S1PREDICTION_ATTRIBUTE_RASACTION != S3PREDICTION_ATTRIBUTE_RASACTION
-              )
+            )
     ''')
     overrides["attribute"] = cur.fetchone()[0]
 
     cur.execute(f'''
         SELECT COUNT(*)
         FROM BpuPredictionTrace
-        WHERE S1PREDICTION_CFIPOSITION == S3PREDICTION_CFIPOSITION AND 
-              S1PREDICTION_ATTRIBUTE_BRANCHTYPE == S3PREDICTION_ATTRIBUTE_BRANCHTYPE AND
-              S1PREDICTION_ATTRIBUTE_RASACTION == S3PREDICTION_ATTRIBUTE_RASACTION AND
-              S1PREDICTION_TARGET_ADDR != S3PREDICTION_TARGET_ADDR
+        WHERE
+            S1PREDICTION_TAKEN == S3PREDICTION_TAKEN AND
+            S1PREDICTION_CFIPOSITION == S3PREDICTION_CFIPOSITION AND
+            S1PREDICTION_ATTRIBUTE_BRANCHTYPE == S3PREDICTION_ATTRIBUTE_BRANCHTYPE AND
+            S1PREDICTION_ATTRIBUTE_RASACTION == S3PREDICTION_ATTRIBUTE_RASACTION AND
+            S1PREDICTION_TARGET_ADDR != S3PREDICTION_TARGET_ADDR
     ''')
     overrides["target"] = cur.fetchone()[0]
-
-    cur.execute(f'''
-        SELECT COUNT(*)
-        FROM BpuPredictionTrace
-        WHERE S1PREDICTION_CFIPOSITION == S3PREDICTION_CFIPOSITION AND 
-              S1PREDICTION_ATTRIBUTE_BRANCHTYPE == S3PREDICTION_ATTRIBUTE_BRANCHTYPE AND
-              S1PREDICTION_ATTRIBUTE_RASACTION == S3PREDICTION_ATTRIBUTE_RASACTION AND
-              S1PREDICTION_TARGET_ADDR == S3PREDICTION_TARGET_ADDR AND
-              S1PREDICTION_TAKEN != S3PREDICTION_TAKEN
-    ''')
-    overrides["taken"] = cur.fetchone()[0]
 
     overrides["total"] = sum(overrides.values())
 
@@ -168,6 +171,7 @@ def stat(args: argparse.Namespace, cur: sqlite3.Cursor) -> None:
             brtype_str = Record.render_brtype(brtype)
             rasaction_str = Record.render_rasaction(rasaction)
             print(f"{brtype_str:<12} {rasaction_str:<12} {count:<8}")
+        print(f"{'total':<12} {'':<12} {sum(counts.values()):<8}")
 
     if args.stats_override:
         overrides = count_override(cur)
