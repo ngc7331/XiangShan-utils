@@ -41,6 +41,21 @@ def count_branch_mispredict(cur: sqlite3.Cursor) -> dict[tuple[int, int], int]:
             counts[key] = counts.get(key, 0) + count
     return counts
 
+def count_type(cur: sqlite3.Cursor) -> dict[tuple[int, int], int]:
+    """Get branch counts for each (brType, rasAction) pair."""
+    counts = {}
+    for i in range(8):
+        cur.execute(f'''
+            SELECT TRAIN_BRANCHES_{i}_BITS_ATTRIBUTE_BRANCHTYPE, TRAIN_BRANCHES_{i}_BITS_ATTRIBUTE_RASACTION, COUNT(*)
+            FROM BpuTrainTrace
+            WHERE TRAIN_BRANCHES_{i}_VALID = 1
+            GROUP BY TRAIN_BRANCHES_{i}_BITS_ATTRIBUTE_BRANCHTYPE, TRAIN_BRANCHES_{i}_BITS_ATTRIBUTE_RASACTION
+        ''')
+        for brtype, rasaction, count in cur.fetchall():
+            key = (brtype, rasaction)
+            counts[key] = counts.get(key, 0) + count
+    return counts
+
 def count_type_mispredict(cur: sqlite3.Cursor) -> dict[tuple[int, int], int]:
     """Get misprediction counts for each (brType, rasAction) pair."""
     counts = {}
@@ -161,6 +176,17 @@ def stat(args: argparse.Namespace, cur: sqlite3.Cursor) -> None:
 
         print("Note: brType, rasAction and target may not be accurate if has instruction self-modification.")
         print("Note: position may not be accurate for Indirect branches")
+
+    if args.stats_type:
+        counts = count_type(cur)
+        sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+        print(f"\nBranch counts by attribute:")
+        print(f"{'brType':<12} {'rasAction':<12} {'Count':<8}")
+        for (brtype, rasaction), count in sorted_counts:
+            brtype_str = Record.render_brtype(brtype)
+            rasaction_str = Record.render_rasaction(rasaction)
+            print(f"{brtype_str:<12} {rasaction_str:<12} {count:<8}")
+        print(f"{'total':<12} {'':<12} {sum(counts.values()):<8}")
 
     if args.stats_type_mispredict:
         counts = count_type_mispredict(cur)

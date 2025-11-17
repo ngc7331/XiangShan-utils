@@ -111,6 +111,13 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--stats-type",
+        type=bool,
+        default=True,
+        help="Show branch counts by attribute (brType, rasAction)"
+    )
+
+    parser.add_argument(
         "--stats-type-mispredict",
         type=bool,
         default=True,
