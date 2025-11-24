@@ -104,11 +104,11 @@ def fetch_override_bpids(cur: sqlite3.Cursor, start: int, end: int | None) -> se
     return fetch_bpids(
         cur,
         """
-            S1PREDICTION_TAKEN != S3PREDICTION_TAKEN OR
-            S1PREDICTION_CFIPOSITION != S3PREDICTION_CFIPOSITION OR
-            S1PREDICTION_TARGET_ADDR != S3PREDICTION_TARGET_ADDR OR
-            S1PREDICTION_ATTRIBUTE_BRANCHTYPE != S3PREDICTION_ATTRIBUTE_BRANCHTYPE OR
-            S1PREDICTION_ATTRIBUTE_RASACTION != S3PREDICTION_ATTRIBUTE_RASACTION
+            META_DEBUG_S1PREDICTION_TAKEN != META_DEBUG_S3PREDICTION_TAKEN OR
+            META_DEBUG_S1PREDICTION_CFIPOSITION != META_DEBUG_S3PREDICTION_CFIPOSITION OR
+            META_DEBUG_S1PREDICTION_TARGET_ADDR != META_DEBUG_S3PREDICTION_TARGET_ADDR OR
+            META_DEBUG_S1PREDICTION_ATTRIBUTE_BRANCHTYPE != META_DEBUG_S3PREDICTION_ATTRIBUTE_BRANCHTYPE OR
+            META_DEBUG_S1PREDICTION_ATTRIBUTE_RASACTION != META_DEBUG_S3PREDICTION_ATTRIBUTE_RASACTION
         """,
         [],
         TABLE_PRED,
@@ -173,18 +173,18 @@ def fetch_prediction_trace(
         "META_DEBUG_BPID",
         "META_DEBUG_STARTVADDR_ADDR",
         "'p1' as type",
-        "S1PREDICTION_TAKEN as taken",
-        "S1PREDICTION_CFIPOSITION as position",
+        "META_DEBUG_S1PREDICTION_TAKEN as taken",
+        "META_DEBUG_S1PREDICTION_CFIPOSITION as position",
         "'-' as mispredict"
     ]
 
     # Add optional fields based on parameters
     if include_brtype:
-        base_fields.append("S1PREDICTION_ATTRIBUTE_BRANCHTYPE as brType")
+        base_fields.append("META_DEBUG_S1PREDICTION_ATTRIBUTE_BRANCHTYPE as brType")
     if include_rasaction:
-        base_fields.append("S1PREDICTION_ATTRIBUTE_RASACTION as rasAction")
+        base_fields.append("META_DEBUG_S1PREDICTION_ATTRIBUTE_RASACTION as rasAction")
     if include_target:
-        base_fields.append("S1PREDICTION_TARGET_ADDR as target")
+        base_fields.append("META_DEBUG_S1PREDICTION_TARGET_ADDR as target")
 
     meta_field_names = [f"META_{f}" for f in (meta_fields or [])]
 
