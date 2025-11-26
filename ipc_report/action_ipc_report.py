@@ -15,6 +15,15 @@ def post(api: GitHub, issue_number: int, report: str):
             return
 
     logging.info(f"Posting report to #{issue_number}")
+
+    whoami = api.user.get()["login"]
+    comments = api.issues.list_comments("OpenXiangShan", "XiangShan", issue_number)
+    for c in comments:
+        if c["user"]["login"] == whoami:
+            logging.info(f"Find comments id {c['id']} from bot, updating it...")
+            api.issues.update_comment("OpenXiangShan", "XiangShan", c["id"], report)
+            return
+
     api.issues.create_comment("OpenXiangShan", "XiangShan", issue_number, report)
 
 def main():

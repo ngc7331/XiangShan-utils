@@ -12,6 +12,11 @@ class ApiGroup:
     def __init__(self, api: "GitHub"):
         self.api = api
 
+class User(ApiGroup):
+    def get(self) -> dict:
+        '''Get the authenticated user'''
+        return self.api.get("user")
+
 class Actions(ApiGroup):
     ''' Internal Actions API group. '''
     def list_runs(
@@ -153,7 +158,7 @@ class Issues(ApiGroup):
         return self.api.get(
             f"repos/{owner}/{repo}/issues/{issue_number}/comments"
         )
-    
+
     def create_comment(
         self,
         owner: str,
@@ -164,6 +169,19 @@ class Issues(ApiGroup):
         ''' Create a review comment for a issue '''
         return self.api.post(
             f"repos/{owner}/{repo}/issues/{issue_number}/comments",
+            json = {"body": body}
+        )
+
+    def update_comment(
+        self,
+        owner: str,
+        repo: str,
+        comment_id: int,
+        body: str
+    ) -> dict:
+        ''' Update an issue comment '''
+        return self.api.patch(
+            f"repos/{owner}/{repo}/issues/comments/{comment_id}",
             json = {"body": body}
         )
 
@@ -183,6 +201,7 @@ class GitHub:
         self.__port = port
         self.__cachedir = cachedir
 
+        self.user = User(self)
         self.actions = Actions(self)
         self.issues = Issues(self)
         self.pull_requests = PullRequests(self)
@@ -209,9 +228,12 @@ class GitHub:
     def get(self, endpoint: str, **kwargs) -> dict:
         ''' Get JSON content from a GitHub API endpoint. '''
         return self.__request("get", endpoint, **kwargs).json()
-    
+
     def post(self, endpoint: str, **kwargs) -> dict:
         return self.__request("post", endpoint, **kwargs).json()
+
+    def patch(self, endpoint: str, **kwargs) -> dict:
+        return self.__request("patch", endpoint, **kwargs).json()
 
     def cache_open(self, path: str, mode: str) -> IO[Any]:
         ''' Open a file in the cache directory. '''
