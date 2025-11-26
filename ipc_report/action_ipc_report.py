@@ -5,8 +5,19 @@ import logging
 
 from modules.github import GitHub
 from modules.xiangshan import XiangShanAction
+from modules.utils import confirm
 
-if __name__ == "__main__":
+def post(api: GitHub, issue_number: int, report: str):
+    if " nan " in report:
+        logging.warning("Seems report have invalid results, please check the log.")
+        if not confirm("Continue post"):
+            logging.info("Abort.")
+            return
+
+    logging.info(f"Posting report to #{issue_number}")
+    api.issues.create_comment("OpenXiangShan", "XiangShan", issue_number, report)
+
+def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -23,6 +34,10 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "-o", "--output", type=str, default="ipc_report.md"
+    )
+
+    parser.add_argument(
+        "-p", "--post", type=int,
     )
 
     parser.add_argument(
@@ -69,6 +84,13 @@ if __name__ == "__main__":
 
     # generate markdown
     logging.info(f"Generating IPC report for {len(actions)} actions")
+    report = XiangShanAction.generate_ipc_report(base, *actions)
     with open(output_file, "w") as f:
-        f.write(XiangShanAction.generate_ipc_report(base, *actions))
+        f.write(report)
     logging.info(f"IPC report written to {output_file}")
+
+    if args.post:
+        post(api, args.post, report)
+
+if __name__ == "__main__":
+    main()

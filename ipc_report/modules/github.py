@@ -142,6 +142,31 @@ class PullRequests(ApiGroup):
             f"repos/{owner}/{repo}/pulls/{pull_number}",
         )
 
+class Issues(ApiGroup):
+    def list_comments(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+    ) -> dict:
+        ''' List review comments on a issue '''
+        return self.api.get(
+            f"repos/{owner}/{repo}/issues/{issue_number}/comments"
+        )
+    
+    def create_comment(
+        self,
+        owner: str,
+        repo: str,
+        issue_number: int,
+        body: str
+    ) -> dict:
+        ''' Create a review comment for a issue '''
+        return self.api.post(
+            f"repos/{owner}/{repo}/issues/{issue_number}/comments",
+            json = {"body": body}
+        )
+
 class GitHub:
     ''' Simple GitHub API wrapper. '''
     def __init__(
@@ -159,6 +184,7 @@ class GitHub:
         self.__cachedir = cachedir
 
         self.actions = Actions(self)
+        self.issues = Issues(self)
         self.pull_requests = PullRequests(self)
 
     def __request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
@@ -183,6 +209,9 @@ class GitHub:
     def get(self, endpoint: str, **kwargs) -> dict:
         ''' Get JSON content from a GitHub API endpoint. '''
         return self.__request("get", endpoint, **kwargs).json()
+    
+    def post(self, endpoint: str, **kwargs) -> dict:
+        return self.__request("post", endpoint, **kwargs).json()
 
     def cache_open(self, path: str, mode: str) -> IO[Any]:
         ''' Open a file in the cache directory. '''
