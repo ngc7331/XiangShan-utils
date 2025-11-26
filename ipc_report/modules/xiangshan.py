@@ -5,6 +5,7 @@ from typing import Dict
 import math
 
 from .github import GitHub
+from .utils import geometric_mean
 
 class XiangShanLog:
     ''' Parser class for XiangShan stdout & stderr logs '''
@@ -189,6 +190,8 @@ class XiangShanAction:
                 logging.warning(e)
                 ipc[testcase] = float("NaN")
 
+        ipc["GEOMEAN"] = geometric_mean(ipc.values())
+
         return ipc
 
     def get_diff(self, base: "XiangShanAction") -> dict[str, float]:
@@ -196,24 +199,24 @@ class XiangShanAction:
         # XiangShanAction.get_ipc() ensures we have IPC values for all test cases
         ipc = self.get_ipc()
         base_ipc = base.get_ipc()
-        return {
+        diff = {
             testcase: ipc[testcase] / base_ipc[testcase] - 1 if not (math.isnan(ipc[testcase]) or math.isnan(base_ipc[testcase])) else .0
             for testcase in self.ALL_TESTCASES
         }
+        diff["GEOMEAN"] = ipc["GEOMEAN"] / base_ipc["GEOMEAN"] - 1
+        return diff
 
     def generate_ipc_report_line(self, base: "XiangShanAction | None" = None, *, is_base: bool = False) -> str:
         ''' Generate a markdown table line for the IPC report. '''
         md = f"| {self.run_id_str(is_base=is_base)} "
         md += "| " + " | ".join(f"{func()}" for func in self.META.values()) + " "
         md += "| " + " | ".join(f"{ipc}" for ipc in self.get_ipc().values()) + " "
-        md += "| " if base is not None else ""
         md += "|\n"
         if not is_base and base is not None:
             diff = self.get_diff(base).values()
             md += f"| {self.run_id} diff "
             md += "| " * (len(self.META) + 1)
             md += " | ".join(f"{d:.2%}" for d in diff) + " "
-            md += f"| {sum(diff) / len(diff):.2%} "
             md += "|\n"
         return md
 
@@ -225,9 +228,8 @@ class XiangShanAction:
         md += "| Run # "
         md += "| " + " | ".join(f"{meta}" for meta in actions[0].META.keys()) + " "
         md += "| " + " | ".join(actions[0].ALL_TESTCASES) + " "
-        md += "| Avg. Diff " if base is not None else ""
-        md += "|\n"
-        md += "| :---: " * (len(actions[0].ALL_TESTCASES) + len(actions[0].META) + 1 + (1 if base is not None else 0)) + "|\n"
+        md += "| **GEOMEAN** |\n"
+        md += "| :---: " * (len(actions[0].ALL_TESTCASES) + len(actions[0].META) + 2) + "|\n"
         if base is not None:
             md += base.generate_ipc_report_line(base, is_base=True)
         for action in actions:

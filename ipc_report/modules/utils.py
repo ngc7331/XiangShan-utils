@@ -1,4 +1,5 @@
 import logging
+import math
 
 def confirm(prompt: str) -> bool:
     while True:
@@ -11,3 +12,10 @@ def confirm(prompt: str) -> bool:
             case _:
                 logging.error("Invalid input")
                 continue
+
+
+def geometric_mean(nums: list[float]):
+    product = 1
+    for n in nums:
+        product *= n
+    return math.pow(product, 1/len(nums))
