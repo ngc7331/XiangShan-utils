@@ -7,7 +7,7 @@ from modules.github import GitHub
 from modules.xiangshan import XiangShanAction
 from modules.utils import confirm
 
-def post(api: GitHub, issue_number: int, report: str):
+def post(api: GitHub, issue_number: int, report: str, post_new: bool):
     if " nan " in report:
         logging.warning("Seems report have invalid results, please check the log.")
         if not confirm("Continue post"):
@@ -16,13 +16,15 @@ def post(api: GitHub, issue_number: int, report: str):
 
     logging.info(f"Posting report to #{issue_number}")
 
-    whoami = api.user.get()["login"]
-    comments = api.issues.list_comments("OpenXiangShan", "XiangShan", issue_number)
-    for c in comments:
-        if c["user"]["login"] == whoami:
-            logging.info(f"Find comments id {c['id']} from bot, updating it...")
-            api.issues.update_comment("OpenXiangShan", "XiangShan", c["id"], report)
-            return
+    if not post_new:
+        # try update existing comment if no post_new is asked
+        whoami = api.user.get()["login"]
+        comments = api.issues.list_comments("OpenXiangShan", "XiangShan", issue_number)
+        for c in comments:
+            if c["user"]["login"] == whoami:
+                logging.info(f"Find comments id {c['id']} from bot, updating it...")
+                api.issues.update_comment("OpenXiangShan", "XiangShan", c["id"], report)
+                return
 
     api.issues.create_comment("OpenXiangShan", "XiangShan", issue_number, report)
 
@@ -47,6 +49,10 @@ def main():
 
     parser.add_argument(
         "-p", "--post", type=int,
+    )
+
+    parser.add_argument(
+        "--post-new", action="store_true"
     )
 
     parser.add_argument(
@@ -99,7 +105,7 @@ def main():
     logging.info(f"IPC report written to {output_file}")
 
     if args.post:
-        post(api, args.post, report)
+        post(api, args.post, report, args.post_new)
 
 if __name__ == "__main__":
     main()
