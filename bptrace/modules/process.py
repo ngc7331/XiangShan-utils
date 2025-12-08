@@ -92,7 +92,7 @@ def fetch_bpids(
     where_clause, where_params = get_time_range_where_clause(start, end)
 
     cur.execute(f"""
-        SELECT DISTINCT {"META_DEBUG_BPID" if table == TABLE_PRED else "TRAIN_META_DEBUG_BPID"}
+        SELECT DISTINCT {"PERFMETA_BPID" if table == TABLE_PRED else "TRAIN_PERFMETA_BPID"}
         FROM {table}
         WHERE {where_clause} AND ({condition})
     """, where_params + params)
@@ -104,11 +104,11 @@ def fetch_override_bpids(cur: sqlite3.Cursor, start: int, end: int | None) -> se
     return fetch_bpids(
         cur,
         """
-            META_DEBUG_S1PREDICTION_TAKEN != META_DEBUG_S3PREDICTION_TAKEN OR
-            META_DEBUG_S1PREDICTION_CFIPOSITION != META_DEBUG_S3PREDICTION_CFIPOSITION OR
-            META_DEBUG_S1PREDICTION_TARGET_ADDR != META_DEBUG_S3PREDICTION_TARGET_ADDR OR
-            META_DEBUG_S1PREDICTION_ATTRIBUTE_BRANCHTYPE != META_DEBUG_S3PREDICTION_ATTRIBUTE_BRANCHTYPE OR
-            META_DEBUG_S1PREDICTION_ATTRIBUTE_RASACTION != META_DEBUG_S3PREDICTION_ATTRIBUTE_RASACTION
+            PERFMETA_S1PREDICTION_TAKEN != PERFMETA_S3PREDICTION_TAKEN OR
+            PERFMETA_S1PREDICTION_CFIPOSITION != PERFMETA_S3PREDICTION_CFIPOSITION OR
+            PERFMETA_S1PREDICTION_TARGET_ADDR != PERFMETA_S3PREDICTION_TARGET_ADDR OR
+            PERFMETA_S1PREDICTION_ATTRIBUTE_BRANCHTYPE != PERFMETA_S3PREDICTION_ATTRIBUTE_BRANCHTYPE OR
+            PERFMETA_S1PREDICTION_ATTRIBUTE_RASACTION != PERFMETA_S3PREDICTION_ATTRIBUTE_RASACTION
         """,
         [],
         TABLE_PRED,
@@ -134,7 +134,7 @@ def fetch_addr_bpids(cur: sqlite3.Cursor, addr: int, start: int, end: int | None
     """Get all bpids with specified startVAddr."""
     return fetch_bpids(
         cur,
-        "META_DEBUG_STARTVADDR_ADDR = ?",
+        "PERFMETA_STARTVADDR_ADDR = ?",
         [addr],
         TABLE_PRED,
         start,
@@ -159,7 +159,7 @@ def fetch_prediction_trace(
     if bpid_list:
         ensure_temp_table(cur)
         insert_bpids_to_temp_table(cur, bpid_list)
-        bpid_subquery = get_bpids_subquery("META_DEBUG_BPID")
+        bpid_subquery = get_bpids_subquery("PERFMETA_BPID")
     else:
         bpid_subquery = ""
 
@@ -170,21 +170,21 @@ def fetch_prediction_trace(
     # Build select fields list - metadata fields at the end
     base_fields = [
         "STAMP",
-        "META_DEBUG_BPID",
-        "META_DEBUG_STARTVADDR_ADDR",
+        "PERFMETA_BPID",
+        "PERFMETA_STARTVADDR_ADDR",
         "'p1' as type",
-        "META_DEBUG_S1PREDICTION_TAKEN as taken",
-        "META_DEBUG_S1PREDICTION_CFIPOSITION as position",
+        "PERFMETA_S1PREDICTION_TAKEN as taken",
+        "PERFMETA_S1PREDICTION_CFIPOSITION as position",
         "'-' as mispredict"
     ]
 
     # Add optional fields based on parameters
     if include_brtype:
-        base_fields.append("META_DEBUG_S1PREDICTION_ATTRIBUTE_BRANCHTYPE as brType")
+        base_fields.append("PERFMETA_S1PREDICTION_ATTRIBUTE_BRANCHTYPE as brType")
     if include_rasaction:
-        base_fields.append("META_DEBUG_S1PREDICTION_ATTRIBUTE_RASACTION as rasAction")
+        base_fields.append("PERFMETA_S1PREDICTION_ATTRIBUTE_RASACTION as rasAction")
     if include_target:
-        base_fields.append("META_DEBUG_S1PREDICTION_TARGET_ADDR as target")
+        base_fields.append("PERFMETA_S1PREDICTION_TARGET_ADDR as target")
 
     meta_field_names = [f"META_{f}" for f in (meta_fields or [])]
 
@@ -197,7 +197,7 @@ def fetch_prediction_trace(
         UNION ALL
         SELECT {select_str.replace("'p1'", "'p3'").replace("S1PREDICTION", "S3PREDICTION")}
         FROM BpuPredictionTrace WHERE {where_clause} {bpid_subquery}
-        ORDER BY STAMP ASC, META_DEBUG_BPID, type
+        ORDER BY STAMP ASC, PERFMETA_BPID, type
         {' LIMIT ? ' if num is not None else ''}
     """, final_params)
 
@@ -236,15 +236,15 @@ def fetch_train_trace(
     if bpid_list:
         ensure_temp_table(cur)
         insert_bpids_to_temp_table(cur, bpid_list)
-        bpid_subquery = get_bpids_subquery("TRAIN_META_DEBUG_BPID")
+        bpid_subquery = get_bpids_subquery("TRAIN_PERFMETA_BPID")
     else:
         bpid_subquery = ""
 
     # Build select fields list - metadata fields at the end
     base_fields = [
         "STAMP",
-        "TRAIN_META_DEBUG_BPID",
-        "TRAIN_META_DEBUG_STARTVADDR_ADDR"
+        "TRAIN_PERFMETA_BPID",
+        "TRAIN_PERFMETA_STARTVADDR_ADDR"
     ]
     meta_field_names = [f"TRAIN_META_{f}" for f in (meta_fields or [])]
 

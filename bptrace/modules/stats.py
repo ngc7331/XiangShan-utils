@@ -17,10 +17,10 @@ def count_block_mispredict(cur: sqlite3.Cursor) -> dict[int, int]:
     counts = {}
     for i in range(8):
         cur.execute(f'''
-            SELECT TRAIN_META_DEBUG_STARTVADDR_ADDR, COUNT(*)
+            SELECT TRAIN_PERFMETA_STARTVADDR_ADDR, COUNT(*)
             FROM BpuTrainTrace
             WHERE TRAIN_BRANCHES_{i}_VALID = 1 AND TRAIN_BRANCHES_{i}_BITS_MISPREDICT = 1
-            GROUP BY TRAIN_META_DEBUG_STARTVADDR_ADDR
+            GROUP BY TRAIN_PERFMETA_STARTVADDR_ADDR
         ''')
         for addr, count in cur.fetchall():
             counts[addr] = counts.get(addr, 0) + count
@@ -31,10 +31,10 @@ def count_branch_mispredict(cur: sqlite3.Cursor) -> dict[tuple[int, int], int]:
     counts = {}
     for i in range(8):
         cur.execute(f'''
-            SELECT TRAIN_META_DEBUG_STARTVADDR_ADDR, TRAIN_BRANCHES_{i}_BITS_CFIPOSITION, COUNT(*)
+            SELECT TRAIN_PERFMETA_STARTVADDR_ADDR, TRAIN_BRANCHES_{i}_BITS_CFIPOSITION, COUNT(*)
             FROM BpuTrainTrace
             WHERE TRAIN_BRANCHES_{i}_VALID = 1 AND TRAIN_BRANCHES_{i}_BITS_MISPREDICT = 1
-            GROUP BY TRAIN_META_DEBUG_STARTVADDR_ADDR, TRAIN_BRANCHES_{i}_BITS_CFIPOSITION
+            GROUP BY TRAIN_PERFMETA_STARTVADDR_ADDR, TRAIN_BRANCHES_{i}_BITS_CFIPOSITION
         ''')
         for addr, position, count in cur.fetchall():
             key = (addr, position)
@@ -75,8 +75,8 @@ def fetch_record(cur: sqlite3.Cursor, addr: int, position: int) -> Record:
     """Fetch attributes of a specific branch identified by (addr, position)."""
     base_fields = [
         "STAMP",
-        "TRAIN_META_DEBUG_BPID",
-        "TRAIN_META_DEBUG_STARTVADDR_ADDR"
+        "TRAIN_PERFMETA_BPID",
+        "TRAIN_PERFMETA_STARTVADDR_ADDR"
     ]
     for i in range(8):
         branch_fields = [
@@ -96,7 +96,7 @@ def fetch_record(cur: sqlite3.Cursor, addr: int, position: int) -> Record:
             SELECT {select_str}
             FROM BpuTrainTrace
             WHERE TRAIN_BRANCHES_{i}_VALID = 1 AND
-                  TRAIN_META_DEBUG_STARTVADDR_ADDR = ? AND
+                  TRAIN_PERFMETA_STARTVADDR_ADDR = ? AND
                   TRAIN_BRANCHES_{i}_BITS_CFIPOSITION = ?
             LIMIT 1
         ''', (addr, position))
@@ -112,7 +112,7 @@ def count_override(cur: sqlite3.Cursor) -> dict[str, int]:
         SELECT COUNT(*)
         FROM BpuPredictionTrace
         WHERE
-            META_DEBUG_S1PREDICTION_TAKEN != META_DEBUG_S3PREDICTION_TAKEN
+            PERFMETA_S1PREDICTION_TAKEN != PERFMETA_S3PREDICTION_TAKEN
     ''')
     overrides["taken"] = cur.fetchone()[0]
 
@@ -120,8 +120,8 @@ def count_override(cur: sqlite3.Cursor) -> dict[str, int]:
         SELECT COUNT(*)
         FROM BpuPredictionTrace
         WHERE
-            META_DEBUG_S1PREDICTION_TAKEN == META_DEBUG_S3PREDICTION_TAKEN AND
-            META_DEBUG_S1PREDICTION_CFIPOSITION != META_DEBUG_S3PREDICTION_CFIPOSITION
+            PERFMETA_S1PREDICTION_TAKEN == PERFMETA_S3PREDICTION_TAKEN AND
+            PERFMETA_S1PREDICTION_CFIPOSITION != PERFMETA_S3PREDICTION_CFIPOSITION
     ''')
     overrides["position"] = cur.fetchone()[0]
 
@@ -129,10 +129,10 @@ def count_override(cur: sqlite3.Cursor) -> dict[str, int]:
         SELECT COUNT(*)
         FROM BpuPredictionTrace
         WHERE
-            META_DEBUG_S1PREDICTION_TAKEN == META_DEBUG_S3PREDICTION_TAKEN AND
-            META_DEBUG_S1PREDICTION_CFIPOSITION == META_DEBUG_S3PREDICTION_CFIPOSITION AND (
-                META_DEBUG_S1PREDICTION_ATTRIBUTE_BRANCHTYPE != META_DEBUG_S3PREDICTION_ATTRIBUTE_BRANCHTYPE OR
-                META_DEBUG_S1PREDICTION_ATTRIBUTE_RASACTION != META_DEBUG_S3PREDICTION_ATTRIBUTE_RASACTION
+            PERFMETA_S1PREDICTION_TAKEN == PERFMETA_S3PREDICTION_TAKEN AND
+            PERFMETA_S1PREDICTION_CFIPOSITION == PERFMETA_S3PREDICTION_CFIPOSITION AND (
+                PERFMETA_S1PREDICTION_ATTRIBUTE_BRANCHTYPE != PERFMETA_S3PREDICTION_ATTRIBUTE_BRANCHTYPE OR
+                PERFMETA_S1PREDICTION_ATTRIBUTE_RASACTION != PERFMETA_S3PREDICTION_ATTRIBUTE_RASACTION
             )
     ''')
     overrides["attribute"] = cur.fetchone()[0]
@@ -141,11 +141,11 @@ def count_override(cur: sqlite3.Cursor) -> dict[str, int]:
         SELECT COUNT(*)
         FROM BpuPredictionTrace
         WHERE
-            META_DEBUG_S1PREDICTION_TAKEN == META_DEBUG_S3PREDICTION_TAKEN AND
-            META_DEBUG_S1PREDICTION_CFIPOSITION == META_DEBUG_S3PREDICTION_CFIPOSITION AND
-            META_DEBUG_S1PREDICTION_ATTRIBUTE_BRANCHTYPE == META_DEBUG_S3PREDICTION_ATTRIBUTE_BRANCHTYPE AND
-            META_DEBUG_S1PREDICTION_ATTRIBUTE_RASACTION == META_DEBUG_S3PREDICTION_ATTRIBUTE_RASACTION AND
-            META_DEBUG_S1PREDICTION_TARGET_ADDR != META_DEBUG_S3PREDICTION_TARGET_ADDR
+            PERFMETA_S1PREDICTION_TAKEN == PERFMETA_S3PREDICTION_TAKEN AND
+            PERFMETA_S1PREDICTION_CFIPOSITION == PERFMETA_S3PREDICTION_CFIPOSITION AND
+            PERFMETA_S1PREDICTION_ATTRIBUTE_BRANCHTYPE == PERFMETA_S3PREDICTION_ATTRIBUTE_BRANCHTYPE AND
+            PERFMETA_S1PREDICTION_ATTRIBUTE_RASACTION == PERFMETA_S3PREDICTION_ATTRIBUTE_RASACTION AND
+            PERFMETA_S1PREDICTION_TARGET_ADDR != PERFMETA_S3PREDICTION_TARGET_ADDR
     ''')
     overrides["target"] = cur.fetchone()[0]
 

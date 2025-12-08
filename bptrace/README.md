@@ -30,18 +30,18 @@ XiangShan 通过 ChiselDB 功能在仿真时保存分支预测的预测和训练
 
 - `BpuPredictionTrace`
   - `STAMP`：时间戳（仿真周期数）
-  - `META_DEBUG_BPID`：预测序列号，唯一
-  - `META_DEBUG_STARTVADDR_ADDR`：预测块起始地址
-  - `META_DEBUG_S{1,3}PREDICTION_TAKEN`：s1/3 流水级预测的是否 taken
-  - `META_DEBUG_S{1,3}PREDICTION_CFIPOSITION`：s1/3 流水级预测的分支位置
-  - `META_DEBUG_S{1,3}PREDICTION_TARGET_ADDR`：s1/3 流水级预测的分支目标地址
-  - `META_DEBUG_S{1,3}PREDICTION_ATTRIBUTE_BRANCHTYPE`：s1/3 流水级预测的分支属性之分支类型
-  - `META_DEBUG_S{1,3}PREDICTION_ATTRIBUTE_RASACTION`：s1/3 流水级预测的分支属性之 RAS 动作
+  - `PERFMETA_BPID`：预测序列号，唯一
+  - `PERFMETA_STARTVADDR_ADDR`：预测块起始地址
+  - `PERFMETA_S{1,3}PREDICTION_TAKEN`：s1/3 流水级预测的是否 taken
+  - `PERFMETA_S{1,3}PREDICTION_CFIPOSITION`：s1/3 流水级预测的分支位置
+  - `PERFMETA_S{1,3}PREDICTION_TARGET_ADDR`：s1/3 流水级预测的分支目标地址
+  - `PERFMETA_S{1,3}PREDICTION_ATTRIBUTE_BRANCHTYPE`：s1/3 流水级预测的分支属性之分支类型
+  - `PERFMETA_S{1,3}PREDICTION_ATTRIBUTE_RASACTION`：s1/3 流水级预测的分支属性之 RAS 动作
   - `META_XXX`：其他元数据
 - `BpuTrainTrace`
   - `STAMP`：时间戳（仿真周期数）
-  - `TRAIN_META_DEBUG_BPID`：预测序列号，在此表中不保证唯一，因为一个预测块可能被分成多次训练
-  - `TRAIN_META_DEBUG_STARTVADDR_ADDR`：预测块起始地址
+  - `TRAIN_PERFMETA_BPID`：预测序列号，在此表中不保证唯一，因为一个预测块可能被分成多次训练
+  - `TRAIN_PERFMETA_STARTVADDR_ADDR`：预测块起始地址
   - `TRAIN_META_XXX`：其他元数据
   - `TRAIN_BRANCHES_{0-7}_VALID`：训练的分支是否有效
   - `TRAIN_BRANCHES_{0-7}_BITS_TAKEN`：训练的分支是否 taken
