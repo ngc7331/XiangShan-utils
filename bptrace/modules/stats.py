@@ -13,28 +13,28 @@ from .consts import (
 )
 
 def count_block_mispredict(cur: sqlite3.Cursor) -> dict[int, int]:
-    """Get top N startVAddr with most mispredictions."""
+    """Get top N startPc with most mispredictions."""
     counts = {}
     for i in range(8):
         cur.execute(f'''
-            SELECT TRAIN_PERFMETA_STARTVADDR_ADDR, COUNT(*)
+            SELECT TRAIN_PERFMETA_STARTPC_ADDR, COUNT(*)
             FROM BpuTrainTrace
             WHERE TRAIN_BRANCHES_{i}_VALID = 1 AND TRAIN_BRANCHES_{i}_BITS_MISPREDICT = 1
-            GROUP BY TRAIN_PERFMETA_STARTVADDR_ADDR
+            GROUP BY TRAIN_PERFMETA_STARTPC_ADDR
         ''')
         for addr, count in cur.fetchall():
             counts[addr] = counts.get(addr, 0) + count
     return counts
 
 def count_branch_mispredict(cur: sqlite3.Cursor) -> dict[tuple[int, int], int]:
-    """Get misprediction counts for each (startvaddr, position) pair."""
+    """Get misprediction counts for each (startpc, position) pair."""
     counts = {}
     for i in range(8):
         cur.execute(f'''
-            SELECT TRAIN_PERFMETA_STARTVADDR_ADDR, TRAIN_BRANCHES_{i}_BITS_CFIPOSITION, COUNT(*)
+            SELECT TRAIN_PERFMETA_STARTPC_ADDR, TRAIN_BRANCHES_{i}_BITS_CFIPOSITION, COUNT(*)
             FROM BpuTrainTrace
             WHERE TRAIN_BRANCHES_{i}_VALID = 1 AND TRAIN_BRANCHES_{i}_BITS_MISPREDICT = 1
-            GROUP BY TRAIN_PERFMETA_STARTVADDR_ADDR, TRAIN_BRANCHES_{i}_BITS_CFIPOSITION
+            GROUP BY TRAIN_PERFMETA_STARTPC_ADDR, TRAIN_BRANCHES_{i}_BITS_CFIPOSITION
         ''')
         for addr, position, count in cur.fetchall():
             key = (addr, position)
@@ -76,7 +76,7 @@ def fetch_record(cur: sqlite3.Cursor, addr: int, position: int) -> Record:
     base_fields = [
         "STAMP",
         "TRAIN_PERFMETA_BPID",
-        "TRAIN_PERFMETA_STARTVADDR_ADDR"
+        "TRAIN_PERFMETA_STARTPC_ADDR"
     ]
     for i in range(8):
         branch_fields = [
@@ -96,7 +96,7 @@ def fetch_record(cur: sqlite3.Cursor, addr: int, position: int) -> Record:
             SELECT {select_str}
             FROM BpuTrainTrace
             WHERE TRAIN_BRANCHES_{i}_VALID = 1 AND
-                  TRAIN_PERFMETA_STARTVADDR_ADDR = ? AND
+                  TRAIN_PERFMETA_STARTPC_ADDR = ? AND
                   TRAIN_BRANCHES_{i}_BITS_CFIPOSITION = ?
             LIMIT 1
         ''', (addr, position))

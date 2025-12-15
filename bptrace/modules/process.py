@@ -131,10 +131,10 @@ def fetch_mispredict_bpids(cur: sqlite3.Cursor, start: int, end: int | None) -> 
     )
 
 def fetch_addr_bpids(cur: sqlite3.Cursor, addr: int, start: int, end: int | None) -> set[int]:
-    """Get all bpids with specified startVAddr."""
+    """Get all bpids with specified startPc."""
     return fetch_bpids(
         cur,
-        "PERFMETA_STARTVADDR_ADDR = ?",
+        "PERFMETA_STARTPC_ADDR = ?",
         [addr],
         TABLE_PRED,
         start,
@@ -171,7 +171,7 @@ def fetch_prediction_trace(
     base_fields = [
         "STAMP",
         "PERFMETA_BPID",
-        "PERFMETA_STARTVADDR_ADDR",
+        "PERFMETA_STARTPC_ADDR",
         "'p1' as type",
         "PERFMETA_S1PREDICTION_TAKEN as taken",
         "PERFMETA_S1PREDICTION_CFIPOSITION as position",
@@ -244,7 +244,7 @@ def fetch_train_trace(
     base_fields = [
         "STAMP",
         "TRAIN_PERFMETA_BPID",
-        "TRAIN_PERFMETA_STARTVADDR_ADDR"
+        "TRAIN_PERFMETA_STARTPC_ADDR"
     ]
     meta_field_names = [f"TRAIN_META_{f}" for f in (meta_fields or [])]
 

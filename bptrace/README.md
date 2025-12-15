@@ -19,8 +19,8 @@
 - `-m, --meta <name[,names]>`：需要显示的元数据字段名，多个字段用逗号分隔，如 `--meta XXX,YYY`，默认为不显示任何元数据
 - `--render-prunedaddr`：将 PrunedAddr 渲染为真实地址
 - `--only-stats`：只输出统计信息，不输出 trace
-- `--stats-mispredict <top_n>`：输出误预测次数最多的前 n 个预测块（startVAddr），默认为 10
-- `--stats-br-mispredict <top_n>`：输出误预测次数最多的前 n 个分支（startVAddr, position）对，默认为 20
+- `--stats-mispredict <top_n>`：输出误预测次数最多的前 n 个预测块（startPC），默认为 10
+- `--stats-br-mispredict <top_n>`：输出误预测次数最多的前 n 个分支（startPC, position）对，默认为 20
 - `--stats-type-mispredict <enable>`：输出按属性（brType, rasAction）分类的误预测次数统计，默认为开启
 - `dbfile`：输入的数据库文件路径
 
@@ -31,7 +31,7 @@ XiangShan 通过 ChiselDB 功能在仿真时保存分支预测的预测和训练
 - `BpuPredictionTrace`
   - `STAMP`：时间戳（仿真周期数）
   - `PERFMETA_BPID`：预测序列号，唯一
-  - `PERFMETA_STARTVADDR_ADDR`：预测块起始地址
+  - `PERFMETA_STARTPC_ADDR`：预测块起始地址
   - `PERFMETA_S{1,3}PREDICTION_TAKEN`：s1/3 流水级预测的是否 taken
   - `PERFMETA_S{1,3}PREDICTION_CFIPOSITION`：s1/3 流水级预测的分支位置
   - `PERFMETA_S{1,3}PREDICTION_TARGET_ADDR`：s1/3 流水级预测的分支目标地址
@@ -41,7 +41,7 @@ XiangShan 通过 ChiselDB 功能在仿真时保存分支预测的预测和训练
 - `BpuTrainTrace`
   - `STAMP`：时间戳（仿真周期数）
   - `TRAIN_PERFMETA_BPID`：预测序列号，在此表中不保证唯一，因为一个预测块可能被分成多次训练
-  - `TRAIN_PERFMETA_STARTVADDR_ADDR`：预测块起始地址
+  - `TRAIN_PERFMETA_STARTPC_ADDR`：预测块起始地址
   - `TRAIN_META_XXX`：其他元数据
   - `TRAIN_BRANCHES_{0-7}_VALID`：训练的分支是否有效
   - `TRAIN_BRANCHES_{0-7}_BITS_TAKEN`：训练的分支是否 taken

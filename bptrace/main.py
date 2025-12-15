@@ -45,7 +45,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--only-addr",
         type=lambda x: int(x, base=0),
-        help="Only output entries with specified startVAddr"
+        help="Only output entries with specified startPc"
     )
 
     parser.add_argument(
@@ -100,14 +100,14 @@ def parse_args() -> argparse.Namespace:
         "--stats-mispredict",
         type=int,
         default=10,
-        help="Show top N blocks (startVAddr) with most mispredictions"
+        help="Show top N blocks (startPc) with most mispredictions"
     )
 
     parser.add_argument(
         "--stats-br-mispredict",
         type=int,
         default=20,
-        help="Show top N branches (startVAddr, position) with most mispredictions"
+        help="Show top N branches (startPc, position) with most mispredictions"
     )
 
     parser.add_argument(
