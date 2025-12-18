@@ -38,14 +38,19 @@ def main():
     )
 
     parser.add_argument(
+        "-e", "--expr",
+        help="Expression to expand"
+    )
+
+    parser.add_argument(
         "-k", "--keep",
         help="Comma-separated list of _GEN ids to keep (not expand)"
     )
 
     args = parser.parse_args()
 
-    if not args.signal and not args.line:
-        parser.error("Either --signal or --line must be specified.")
+    if not args.signal and not args.line and not args.expr:
+        parser.error("Either --signal, --line, or --expr must be specified.")
 
     with open(args.verilog_file, 'r') as f:
         verilog = f.read()
@@ -58,6 +63,9 @@ def main():
 
     if args.line:
         signal_name, assignment = parser.get_assignment_by_line(args.line)
+    elif args.expr:
+        signal_name = "<expr>"
+        assignment = args.expr
     else:
         signal_name = args.signal
         assignment = parser.get_assignment(signal_name)
