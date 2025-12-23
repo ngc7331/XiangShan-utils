@@ -77,7 +77,7 @@ def main():
     token: str = args.token
     base_id: str | None = args.base
     auto_base: bool = args.auto_base
-    actions_ids: list[str] = reversed(args.actions)
+    actions_ids: list[str] = args.actions
     output_file: str = args.output
 
     api = GitHub(token)
