@@ -221,7 +221,7 @@ class XiangShanAction:
         return md
 
     @staticmethod
-    def generate_ipc_report(base: "XiangShanAction | None" = None, *actions: "XiangShanAction") -> str:
+    def generate_ipc_report(base: "XiangShanAction | None" = None, accumulative_base: bool = False, *actions: "XiangShanAction") -> str:
         ''' Generate a markdown IPC report for the given actions. '''
         md = "# IPC Report"
         md += "\n\n"
@@ -234,5 +234,7 @@ class XiangShanAction:
             md += base.generate_ipc_report_line(base, is_base=True)
         for action in actions:
             md += action.generate_ipc_report_line(base)
+            if accumulative_base:
+                base = action
 
         return md

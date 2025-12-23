@@ -44,6 +44,10 @@ def main():
     )
 
     parser.add_argument(
+        "-a", "--accumulative-base", action="store_true"
+    )
+
+    parser.add_argument(
         "-o", "--output", type=str, default="ipc_report.md"
     )
 
@@ -99,7 +103,7 @@ def main():
 
     # generate markdown
     logging.info(f"Generating IPC report for {len(actions)} actions")
-    report = XiangShanAction.generate_ipc_report(base, *actions)
+    report = XiangShanAction.generate_ipc_report(base, args.accumulative_base, *actions)
     with open(output_file, "w") as f:
         f.write(report)
     logging.info(f"IPC report written to {output_file}")
