@@ -125,6 +125,8 @@ class XiangShanAction:
         except ValueError:
             pass
 
+        pr_number: int | None = None
+        run_id: int
         if isinstance(id, int):
             logging.debug(f"... assuming it's a run ID")
             meta = api.actions.get_run("OpenXiangShan", "XiangShan", id)
@@ -132,7 +134,8 @@ class XiangShanAction:
         else: # str
             if id.startswith("#"):
                 logging.debug(f"... assuming it's a PR number")
-                meta = api.pull_requests.get("OpenXiangShan", "XiangShan", int(id[1:]))
+                pr_number = int(id[1:])
+                meta = api.pull_requests.get("OpenXiangShan", "XiangShan", pr_number)
                 id = meta["head"]["sha"]
             else:
                 logging.debug(f"... assuming it's a commit SHA")
@@ -141,6 +144,7 @@ class XiangShanAction:
                 raise ValueError(f"No workflow runs found for commit SHA {id}")
             meta = meta["workflow_runs"][0]
             run_id = meta["id"]
+        pr_number = pr_number or (meta["pull_requests"][0]["number"] if len(meta["pull_requests"]) > 0 else None)
 
         logging.info(f"Getting logs for run {run_id} from GitHub Actions")
 
@@ -172,7 +176,7 @@ class XiangShanAction:
             summaries,
             branch=meta["head_branch"],
             commit_sha=meta["head_sha"],
-            pull_request=meta["pull_requests"][0]["number"] if len(meta["pull_requests"]) > 0 else None,
+            pull_request=pr_number,
             updated_at=meta["updated_at"],
         )
 
