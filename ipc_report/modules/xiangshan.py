@@ -144,7 +144,12 @@ class XiangShanAction:
                 raise ValueError(f"No workflow runs found for commit SHA {id}")
             meta = meta["workflow_runs"][0]
             run_id = meta["id"]
-        pr_number = pr_number or (meta["pull_requests"][0]["number"] if len(meta["pull_requests"]) > 0 else None)
+
+        if not pr_number and len(meta["pull_requests"]) > 0:
+            for record in meta["pull_requests"]:
+                if record["base"]["repo"]["url"].endswith("OpenXiangShan/XiangShan"):
+                    pr_number = record["number"]
+                    break
 
         logging.info(f"Getting logs for run {run_id} from GitHub Actions")
 
