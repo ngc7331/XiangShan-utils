@@ -142,7 +142,12 @@ class XiangShanAction:
             meta = api.actions.list_runs("OpenXiangShan", "XiangShan", id)
             if meta["total_count"] == 0:
                 raise ValueError(f"No workflow runs found for commit SHA {id}")
-            meta = meta["workflow_runs"][0]
+            for record in meta["workflow_runs"]:
+                if record["name"] == "EMU Test":
+                    meta = record
+                    break
+            else:
+                raise ValueError(f"No workflow runs found for commit SHA {id} with job name 'EMU Test'")
             run_id = meta["id"]
 
         if not pr_number and len(meta["pull_requests"]) > 0:
