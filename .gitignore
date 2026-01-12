@@ -7,3 +7,5 @@ __pycache__/
 
 # sync-bosc
 bosc/
+
+.direnv
