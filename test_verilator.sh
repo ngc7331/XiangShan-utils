@@ -119,7 +119,7 @@ function calculate_stats() {
 
 echo "Verilator compilation user time:"
 calculate_stats "${VERILATOR_USER_TIME[@]}"
-echo "Verilator compilation wall time::"
+echo "Verilator compilation wall time:"
 calculate_stats "${VERILATOR_WALL_TIME[@]}"
 echo "C++ compilation time user time:"
 calculate_stats "${CXX_USER_TIME[@]}"
