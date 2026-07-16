@@ -83,7 +83,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("base", help="Base commit SHA / run id")
     parser.add_argument(
         "compare",
-        nargs="+",
+        nargs="*",
         help="List of commit SHAs / run ids to compare against the base",
     )
     return parser.parse_args()
