@@ -6,11 +6,13 @@ from itertools import count
 import logging
 from pathlib import Path
 import re
-from typing import Callable, Literal
+from typing import TYPE_CHECKING, Callable, Literal
 from zipfile import ZipFile
 
-from modules.github import GitHub
 from modules.spec import is_spec
+
+if TYPE_CHECKING:
+    from modules.github import GitHub
 
 OWNER = "OpenXiangShan"
 REPO = "XiangShan"
@@ -213,6 +215,7 @@ class Worker:
     def from_args(args: argparse.Namespace) -> "Worker":
         gh = None
         if args.token:
+            from modules.github import GitHub
             gh = GitHub(args.token)
 
         if not args.base.isdigit():
