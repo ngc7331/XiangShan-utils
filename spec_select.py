@@ -139,6 +139,23 @@ def render_text(filtered: Dict[str, List[dict]]) -> str:
 	return "\n".join(lines)
 
 
+def render_ci_yaml(filtered: Dict[str, List[dict]]) -> str:
+	"""Render a CI YAML snippet for XiangShan Github Actions (Performance Regression), using most weighted checkpoint per testcase prefix."""
+	lines = [
+		"    strategy:",
+		"      matrix:",
+		"        include:",
+	]
+	for alias in ORDER_ALL:
+		key = resolve_alias(alias, filtered)
+		if key is None:
+			continue
+		item = max(filtered[key], key=lambda x: x["weight"])
+		lines.append(f"          - name: {item['testcase']}")
+		lines.append(f"            ckpt: {item['ckpt']}")
+
+	return "\n".join(lines)
+
 def parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(
 		description="Select top-N checkpoints per testcase family from a spec JSON file.",
@@ -152,7 +169,7 @@ def parse_args() -> argparse.Namespace:
 	)
 	parser.add_argument(
 		"--format",
-		choices=["json", "text"],
+		choices=["json", "text", "ci-yaml"],
 		default="json",
 		help="Output format: json (default) or text for human-readable order",
 	)
@@ -173,8 +190,10 @@ def main() -> None:
 
 	if args.format == "json":
 		output_text = json.dumps(filtered, indent=2, sort_keys=True)
-	else:
+	elif args.format == "text":
 		output_text = render_text(filtered)
+	else: # ci-yaml
+		output_text = render_ci_yaml(filtered)
 	if args.output:
 		args.output.write_text(output_text)
 	else:
