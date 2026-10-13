@@ -38,9 +38,9 @@ def clear_temp_table(cur: sqlite3.Cursor) -> None:
     """Clear all entries in temporary table."""
     cur.execute("DELETE FROM temp_bpids")
 
-def validate_meta_fields(cur: sqlite3.Cursor, fields: str | None) -> list[str]:
+def validate_meta_fields(cur: sqlite3.Cursor, fields_str: str | None) -> list[str]:
     """Validate that the requested metadata fields exists and convert to list."""
-    if not fields:
+    if not fields_str:
         return []
 
     # Get table schema
@@ -50,7 +50,7 @@ def validate_meta_fields(cur: sqlite3.Cursor, fields: str | None) -> list[str]:
     )
 
     fields = sorted(
-        field.strip().upper() for field in fields.split(',')
+        field.strip().upper() for field in fields_str.split(',')
     )
 
     for field in fields:
@@ -172,6 +172,7 @@ def fetch_prediction_trace(
         "STAMP",
         "PERFMETA_BPID",
         "PERFMETA_STARTPC_ADDR",
+        "'-' as trainSource",
         "'p1' as type",
         "PERFMETA_S1PREDICTION_TAKEN as taken",
         "PERFMETA_S1PREDICTION_CFIPOSITION as position",
@@ -244,7 +245,8 @@ def fetch_train_trace(
     base_fields = [
         "STAMP",
         "TRAIN_PERFMETA_BPID",
-        "TRAIN_PERFMETA_STARTPC_ADDR"
+        "TRAIN_PERFMETA_STARTPC_ADDR",
+        "TRAIN_DEBUG_SOURCE",
     ]
     meta_field_names = [f"TRAIN_META_{f}" for f in (meta_fields or [])]
 

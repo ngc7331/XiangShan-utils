@@ -3,6 +3,7 @@
 FIELD_STAMP = "stamp"
 FIELD_BPID = "id"
 FIELD_ADDR = "addr"
+FIELD_TRAIN_SOURCE = "trainSource"
 FIELD_TYPE = "type"
 FIELD_TAKEN = "taken"
 FIELD_POSITION = "position"
@@ -15,6 +16,7 @@ BASE_FIELDS = [
     FIELD_STAMP,
     FIELD_BPID,
     FIELD_ADDR,
+    FIELD_TRAIN_SOURCE,
     FIELD_TYPE,
     FIELD_TAKEN,
     FIELD_POSITION,

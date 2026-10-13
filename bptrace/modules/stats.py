@@ -76,7 +76,8 @@ def fetch_record(cur: sqlite3.Cursor, addr: int, position: int) -> Record:
     base_fields = [
         "STAMP",
         "TRAIN_PERFMETA_BPID",
-        "TRAIN_PERFMETA_STARTPC_ADDR"
+        "TRAIN_PERFMETA_STARTPC_ADDR",
+        "TRAIN_DEBUG_SOURCE",
     ]
     for i in range(8):
         branch_fields = [

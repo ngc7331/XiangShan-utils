@@ -1,6 +1,6 @@
 """Type definitions for bptrace."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict
 
 from .consts import (
@@ -8,6 +8,7 @@ from .consts import (
     FIELD_STAMP,
     FIELD_BPID,
     FIELD_ADDR,
+    FIELD_TRAIN_SOURCE,
     FIELD_TYPE,
     FIELD_TAKEN,
     FIELD_POSITION,
@@ -23,6 +24,7 @@ class Record:
     stamp: int
     id: int
     addr: int
+    train_source: int
     type: str
     taken: int
     position: int
@@ -30,7 +32,7 @@ class Record:
     br_type: int | None = None
     ras_action: int | None = None
     target: int | None = None
-    meta: Dict[str, Any] = None
+    meta: Dict[str, Any] = field(default_factory=dict)
 
     @staticmethod
     def from_db(
@@ -45,10 +47,11 @@ class Record:
             stamp=row[0],
             id=row[1],
             addr=row[2],
-            type=row[3],
-            taken=row[4],
-            position=row[5],
-            mispredict=row[6]
+            train_source=row[3],
+            type=row[4],
+            taken=row[5],
+            position=row[6],
+            mispredict=row[7],
         )
         index = len(BASE_FIELDS)
         if include_brtype:
@@ -62,8 +65,8 @@ class Record:
             index += 1
         if meta_fields:
             record.meta = {}
-            for field in meta_fields:
-                record.meta[field] = row[index]
+            for f in meta_fields:
+                record.meta[f] = row[index]
                 index += 1
         return record
 
@@ -92,6 +95,16 @@ class Record:
             'PopAndPush'
         ][rasaction]
 
+    @staticmethod
+    def render_trainsource(source: int | str) -> str:
+        """Convert training source integer to string representation."""
+        if isinstance(source, str):
+            return source
+        return [
+            "Backend",
+            "Ifu"
+        ][source]
+
     def fields(self) -> list[str]:
         """Get list of fields present in this record."""
         fields = BASE_FIELDS.copy()
@@ -111,6 +124,7 @@ class Record:
             FIELD_STAMP: self.stamp,
             FIELD_BPID: self.id,
             FIELD_ADDR: self.render_prunedaddr(self.addr, use_pruned_addr),
+            FIELD_TRAIN_SOURCE: self.render_trainsource(self.train_source),
             FIELD_TYPE: self.type,
             FIELD_TAKEN: self.taken,
             FIELD_POSITION: self.position,
